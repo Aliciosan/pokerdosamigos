@@ -1,26 +1,97 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* CONFIGURAÇÃO BASE (Convertido de @apply para CSS padrão para corrigir o erro) */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: rgb(15, 23, 42); /* Cor exata do bg-slate-900 */
+  color: #f1f5f9; /* Cor exata do text-slate-100 */
+  min-height: 100vh;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* --- ANIMAÇÕES --- */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes bellShake {
+  0% { transform: rotate(0); }
+  15% { transform: rotate(5deg); }
+  30% { transform: rotate(-5deg); }
+  45% { transform: rotate(4deg); }
+  60% { transform: rotate(-4deg); }
+  75% { transform: rotate(2deg); }
+  85% { transform: rotate(-2deg); }
+  100% { transform: rotate(0); }
+}
+.bell-ring {
+  animation: bellShake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+@keyframes pulseSelect {
+  0% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.7); }
+  70% { box-shadow: 0 0 0 10px rgba(234, 179, 8, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0); }
+}
+
+/* --- MESA VISUAL --- */
+.poker-table-container {
+  position: relative;
+  width: 100%;
+  max-width: 800px;
+  height: 380px;
+  margin: 0 auto 40px;
+}
+
+.poker-table-felt {
+  position: absolute;
+  inset: 40px 20px;
+  background: radial-gradient(ellipse at center, #35654d 0%, #1e4d3b 100%);
+  border-radius: 200px;
+  border: 8px solid #5c3a21;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.5), 0 10px 20px rgba(0,0,0,0.3);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.poker-logo-center {
+  opacity: 0.2;
+  color: #a3c2b0;
+  font-weight: bold;
+  font-size: 1.5rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+/* Posições das Cadeiras */
+.seat-pos-1 { top: -10px; left: 50%; transform: translateX(-50%); }
+.seat-pos-2 { top: 15px; right: 20%; }
+.seat-pos-3 { top: 80px; right: -5px; }
+.seat-pos-4 { bottom: 80px; right: -5px; }
+.seat-pos-5 { bottom: 15px; right: 20%; }
+.seat-pos-6 { bottom: -10px; left: 50%; transform: translateX(-50%); }
+.seat-pos-7 { bottom: 15px; left: 20%; }
+.seat-pos-8 { bottom: 80px; left: -5px; }
+.seat-pos-9 { top: 80px; left: -5px; }
+.seat-pos-10 { top: 15px; left: 20%; }
+.seat-pos-11 { top: -10px; left: 35%; }
+.seat-pos-12 { top: -10px; right: 35%; }
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+  .poker-table-container {
+    height: 300px;
+    transform: scale(0.9);
+    transform-origin: top center;
+  }
+  .poker-table-felt { inset: 35px 10px; }
+  .seat-pos-3, .seat-pos-4 { right: -15px; }
+  .seat-pos-8, .seat-pos-9 { left: -15px; }
 }
