@@ -11,18 +11,20 @@ import AddPlayerModal from '@/components/Modals/AddPlayerModal';
 import ScheduleModal from '@/components/Modals/ScheduleModal';
 import SessionsModal from '@/components/Modals/SessionsModal';
 import OnlinePlayersModal from '@/components/Modals/OnlinePlayersModal';
-import VisitorsModal from '@/components/Modals/VisitorsModal'; // Novo Modal
+import VisitorsModal from '@/components/Modals/VisitorsModal';
 import { FaCalendarAlt, FaPlus, FaPowerOff } from 'react-icons/fa';
 
 export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   
   const { 
-    players, confirmedPlayers, schedule, sessions, visitors, // Visitantes aqui
+    players, confirmedPlayers, schedule, sessions, visitors,
     notifications, toasts, soundEnabled,
     addPlayer, updateRebuy, checkoutPlayer, finishSession, addSchedule, deleteSchedule, clearSessions,
-    setConfirmedPlayers, setPlayers, addVisitor, removeVisitor, // Funções de visitante
-    removeToast, setSoundEnabled, markAllRead, clearNotifications
+    addVisitor, removeVisitor, 
+    removeToast, setSoundEnabled, markAllRead, clearNotifications,
+    // Funções Supabase
+    removeVisualSeat, updateSeatPosition, swapSeats, deleteHistoryItem, clearHistory
   } = usePokerGame();
   
   const [activeModal, setActiveModal] = useState<'add' | 'schedule' | 'sessions' | 'online' | 'visitors' | null>(null);
@@ -38,35 +40,50 @@ export default function Home() {
       setIsLoggedIn(true);
   };
 
-  // --- LÓGICA DE MESA E CÁLCULOS (Manter igual) ---
+  // --- LÓGICA DE SELEÇÃO DA MESA (ONLINE) ---
   const handleSeatClick = (seatNum: number) => {
     const occupant = confirmedPlayers.find(p => p.seat === seatNum);
+
     if (selectedSeatId) {
-        if (occupant && occupant.id === selectedSeatId) { setSelectedSeatId(null); return; }
-        if (occupant) {
-            setConfirmedPlayers(prev => prev.map(p => {
-                if (p.id === selectedSeatId) return { ...p, seat: seatNum };
-                const selectedPlayer = prev.find(x => x.id === selectedSeatId);
-                if (p.id === occupant.id) return { ...p, seat: selectedPlayer!.seat };
-                return p;
-            }));
-        } else {
-            setConfirmedPlayers(prev => prev.map(p => p.id === selectedSeatId ? { ...p, seat: seatNum } : p));
+        // Clicou no mesmo -> Deseleciona
+        if (occupant && occupant.id === selectedSeatId) {
+            setSelectedSeatId(null);
+            return;
         }
+
+        // Clicou em outro jogador -> TROCA (Swap Online)
+        if (occupant) {
+            swapSeats(selectedSeatId, occupant.id); // Função do Hook
+            setSelectedSeatId(null);
+            return;
+        }
+
+        // Clicou em vazio -> MOVE (Update Online)
+        updateSeatPosition(selectedSeatId, seatNum); // Função do Hook
         setSelectedSeatId(null);
+
     } else {
+        // Seleciona o jogador
         if (occupant) setSelectedSeatId(occupant.id);
     }
   };
-  const handleRemoveSeat = (id: number) => { if(confirm("Remover da mesa visual?")) { if(selectedSeatId === id) setSelectedSeatId(null); setConfirmedPlayers(prev => prev.filter(p => p.id !== id)); }};
+
+  const handleRemoveSeat = (id: number) => {
+    if(confirm("Remover da mesa visual?")) {
+        if(selectedSeatId === id) setSelectedSeatId(null);
+        removeVisualSeat(id); // Função do Hook
+    }
+  };
+
+  // --- CÁLCULOS ---
   const activeCount = players.filter(p => p.status === 'playing').length;
   const finishedCount = players.filter(p => p.status === 'finished').length;
   const totalInvested = players.reduce((acc, p) => acc + p.buyIn + p.rebuy, 0);
   const totalCashOut = players.reduce((acc, p) => acc + (p.cashOut || 0), 0);
   const balance = totalInvested - totalCashOut;
-  const handleDeleteHistory = (id: number) => { if(confirm("Apagar registro?")) setPlayers(prev => prev.filter(p => p.id !== id)); };
-  const handleClearHistory = () => { if(confirm("Limpar histórico?")) setPlayers(prev => prev.filter(p => p.status === 'playing')); };
 
+  const handleDeleteHistory = (id: number) => { if(confirm("Apagar registro?")) deleteHistoryItem(id); };
+  const handleClearHistory = () => { if(confirm("Limpar histórico?")) clearHistory(); };
 
   if (!isLoggedIn) {
       return <LoginScreen onLogin={handleLogin} />;
@@ -77,19 +94,17 @@ export default function Home() {
       <ToastContainer toasts={toasts} removeToast={removeToast} />
 
       <Header 
-        onlineCount={activeCount} 
-        visitorsCount={visitors.length} // Passa contagem
+        onlineCount={activeCount} visitorsCount={visitors.length} 
         notifications={notifications} soundEnabled={soundEnabled}
         setSoundEnabled={setSoundEnabled} onMarkRead={markAllRead} onClearNotifs={clearNotifications}
         onOpenSchedule={() => setActiveModal('schedule')} 
         onOpenSessions={() => setActiveModal('sessions')}
         onOpenOnline={() => setActiveModal('online')}
-        onOpenVisitors={() => setActiveModal('visitors')} // Abre modal visitantes
+        onOpenVisitors={() => setActiveModal('visitors')}
       />
 
       <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-8">
         
-        {/* Banner Próximo Jogo */}
         {schedule.length > 0 && (
            <div className="bg-blue-900/30 border border-blue-800 rounded-xl p-4 flex flex-col md:flex-row gap-4 justify-between items-center shadow-lg animate-fade">
               <div className="flex items-center gap-3 w-full">
@@ -103,7 +118,6 @@ export default function Home() {
            </div>
         )}
 
-        {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
             <div className="bg-slate-800 p-4 rounded-xl border border-slate-700"><p className="text-[10px] text-slate-500 uppercase font-bold">Jogando</p><p className="text-2xl font-bold text-white">{activeCount}</p></div>
             <div className="bg-slate-800 p-4 rounded-xl border border-slate-700"><p className="text-[10px] text-slate-500 uppercase font-bold">Na Mesa</p><p className="text-2xl font-bold text-green-400 truncate">R$ {totalInvested}</p></div>
@@ -111,7 +125,6 @@ export default function Home() {
             <div className="bg-slate-800 p-4 rounded-xl border border-slate-700"><p className="text-[10px] text-slate-500 uppercase font-bold">Balanço</p><p className="text-2xl font-bold truncate">{balance}</p></div>
         </div>
         
-        {/* Barra de Ações */}
         <div className="flex flex-col gap-4 pt-2">
           <h2 className="text-lg font-bold text-green-400">Na Mesa (Ao Vivo)</h2>
           <div className="flex flex-col md:flex-row gap-3 w-full">
@@ -121,13 +134,12 @@ export default function Home() {
           </div>
         </div>
 
-        <ActiveList players={players} onRebuy={updateRebuy} onCheckout={checkoutPlayer} onDelete={(id) => { if(confirm("Cancelar entrada?")) setPlayers(prev => prev.filter(p => p.id !== id)); }} />
+        <ActiveList players={players} onRebuy={updateRebuy} onCheckout={checkoutPlayer} onDelete={(id) => { if(confirm("Cancelar entrada?")) deleteHistoryItem(id); }} />
         
         <hr className="border-slate-800 my-8" />
         
         <HistoryList players={players} onDelete={handleDeleteHistory} onClear={handleClearHistory} />
 
-        {/* Mesa Visual */}
         <div className="bg-slate-800/50 rounded-2xl py-8 px-2 md:p-8 border border-slate-700 overflow-hidden relative mt-8 flex justify-center">
             <div className="w-full">
                 <h2 className="text-center text-lg font-bold text-blue-400 mb-2 uppercase tracking-wider">Lugares</h2>
@@ -137,7 +149,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Modais */}
       {activeModal === 'add' && <AddPlayerModal onClose={() => setActiveModal(null)} onConfirm={addPlayer} />}
       {activeModal === 'schedule' && <ScheduleModal schedule={schedule} onAdd={addSchedule} onDelete={deleteSchedule} onClose={() => setActiveModal(null)} />}
       {activeModal === 'sessions' && <SessionsModal sessions={sessions} onClear={clearSessions} onClose={() => setActiveModal(null)} />}
