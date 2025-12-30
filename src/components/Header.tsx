@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { FaVolumeUp, FaVolumeMute, FaFolderOpen, FaRegBell, FaTrash } from 'react-icons/fa';
+import { FaVolumeUp, FaVolumeMute, FaFolderOpen, FaRegBell, FaTrash, FaChevronDown } from 'react-icons/fa';
 import { GiPokerHand } from 'react-icons/gi';
 import { NotificationItem } from '@/types';
 
@@ -13,15 +13,15 @@ interface Props {
   onClearNotifs: () => void;
   onOpenSchedule: () => void;
   onOpenSessions: () => void;
+  onOpenOnline: () => void; // Nova prop
 }
 
 export default function Header({ 
     onlineCount, notifications, soundEnabled, setSoundEnabled, 
-    onMarkRead, onClearNotifs, onOpenSchedule, onOpenSessions 
+    onMarkRead, onClearNotifs, onOpenSchedule, onOpenSessions, onOpenOnline 
 }: Props) {
   const [time, setTime] = useState("00:00");
   const [showNotifMenu, setShowNotifMenu] = useState(false);
-  
   const unreadCount = notifications.filter(n => !n.read).length;
 
   useEffect(() => {
@@ -36,7 +36,7 @@ export default function Header({
       <div className="max-w-6xl mx-auto px-4 py-3 md:py-4">
         <div className="flex justify-between items-center">
           
-          {/* Logo e Título Responsivos */}
+          {/* Logo */}
           <div className="flex items-center gap-2 md:gap-4">
             <div className="relative w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl md:rounded-2xl shadow-lg flex items-center justify-center border border-blue-400/20">
                <GiPokerHand className="text-white text-xl md:text-3xl" />
@@ -47,14 +47,23 @@ export default function Header({
             </div>
           </div>
 
-          {/* Botões de Ação */}
-          <div className="flex items-center gap-2 md:gap-3">
-            <div className="hidden md:flex items-center gap-2 bg-slate-700/50 px-3 py-1.5 rounded-full border border-slate-600 mr-1 shadow-sm">
+          {/* Ações */}
+          <div className="flex items-center gap-1 md:gap-3">
+            {/* Botão Online AGORA CLICÁVEL */}
+            <button onClick={onOpenOnline} className="hidden md:flex items-center gap-2 bg-slate-700/50 hover:bg-slate-700 px-3 py-1.5 rounded-full border border-slate-600 mr-1 shadow-sm transition-colors group">
               <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
-              <span className="text-xs font-bold text-slate-300">
+              <span className="text-xs font-bold text-slate-300 group-hover:text-white transition-colors">
                 <span className="text-white">{onlineCount}</span> Online
               </span>
-            </div>
+              <FaChevronDown size={10} className="text-slate-500 group-hover:text-slate-300"/>
+            </button>
+
+            {/* Versão Mobile do Botão Online (ícone pequeno) */}
+             <button onClick={onOpenOnline} className="md:hidden flex items-center justify-center w-8 h-8 bg-slate-700/50 hover:bg-slate-700 rounded-full border border-slate-600 mr-1 relative">
+                 <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-green-500 animate-pulse border border-slate-800"></div>
+                 <span className="text-xs font-bold text-white">{onlineCount}</span>
+             </button>
+
 
             <button onClick={onOpenSessions} className="text-slate-400 hover:text-white transition-colors p-2" title="Histórico">
               <FaFolderOpen className="text-lg md:text-xl" />
@@ -64,16 +73,12 @@ export default function Header({
               {soundEnabled ? <FaVolumeUp className="text-lg md:text-xl" /> : <FaVolumeMute className="text-lg md:text-xl text-red-500" />}
             </button>
 
-            {/* Dropdown Notificações */}
+            {/* Notificações */}
             <div className="relative">
-                <button 
-                    onClick={() => { setShowNotifMenu(!showNotifMenu); onMarkRead(); }} 
-                    className="text-slate-400 hover:text-white transition-colors p-2 relative"
-                >
+                <button onClick={() => { setShowNotifMenu(!showNotifMenu); onMarkRead(); }} className="text-slate-400 hover:text-white transition-colors p-2 relative">
                     <FaRegBell className={`text-xl md:text-2xl ${unreadCount > 0 ? 'animate-bounce' : ''}`} />
                     {unreadCount > 0 && <span className="absolute top-0 right-0 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-slate-800">{unreadCount}</span>}
                 </button>
-
                 {showNotifMenu && (
                     <>
                         <div className="fixed inset-0 z-40" onClick={() => setShowNotifMenu(false)}></div>
@@ -82,10 +87,8 @@ export default function Header({
                                 <span className="text-sm font-bold text-white">Notificações</span>
                                 <button onClick={onClearNotifs} className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"><FaTrash size={10}/> Limpar</button>
                             </div>
-                            <div className="max-h-64 overflow-y-auto">
-                                {notifications.length === 0 ? (
-                                    <div className="p-4 text-center text-slate-500 text-xs">Sem notificações.</div>
-                                ) : (
+                            <div className="max-h-64 overflow-y-auto custom-scrollbar">
+                                {notifications.length === 0 ? ( <div className="p-4 text-center text-slate-500 text-xs">Sem notificações.</div> ) : (
                                     notifications.map(n => (
                                         <div key={n.id} className={`p-3 border-b border-slate-700 ${n.read ? 'opacity-60' : 'bg-slate-700/30'}`}>
                                             <p className="text-sm text-slate-200 leading-tight">{n.message}</p>
