@@ -1,12 +1,12 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { FaVolumeUp, FaVolumeMute, FaFolderOpen, FaRegBell, FaTrash, FaChevronDown, FaEye } from 'react-icons/fa';
+import { FaVolumeUp, FaVolumeMute, FaFolderOpen, FaRegBell, FaTrash, FaEye } from 'react-icons/fa';
 import { GiPokerHand } from 'react-icons/gi';
 import { NotificationItem } from '@/types';
 
 interface Props {
   onlineCount: number;
-  visitorsCount: number; // Novo prop
+  accessCount: number; // Número total de conexões
   notifications: NotificationItem[];
   soundEnabled: boolean;
   setSoundEnabled: (val: boolean) => void;
@@ -15,16 +15,19 @@ interface Props {
   onOpenSchedule: () => void;
   onOpenSessions: () => void;
   onOpenOnline: () => void;
-  onOpenVisitors: () => void; // Novo prop
 }
 
 export default function Header({ 
-    onlineCount, visitorsCount, notifications, soundEnabled, setSoundEnabled, 
-    onMarkRead, onClearNotifs, onOpenSchedule, onOpenSessions, onOpenOnline, onOpenVisitors 
+    onlineCount, accessCount, notifications, soundEnabled, setSoundEnabled, 
+    onMarkRead, onClearNotifs, onOpenSchedule, onOpenSessions, onOpenOnline 
 }: Props) {
   const [time, setTime] = useState("00:00");
   const [showNotifMenu, setShowNotifMenu] = useState(false);
   const unreadCount = notifications.filter(n => !n.read).length;
+
+  // Calculamos visitantes como: Pessoas acessando - Jogadores sentados
+  // Se o cálculo der negativo (lag de rede), mostramos 0
+  const visitorsCount = Math.max(0, accessCount - onlineCount);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -52,7 +55,7 @@ export default function Header({
           {/* Ações */}
           <div className="flex items-center gap-1 md:gap-3">
             
-            {/* Botão JOGANDO (Antigo Online) */}
+            {/* Botão JOGANDO (Abre lista de quem está sentado) */}
             <button onClick={onOpenOnline} className="hidden md:flex items-center gap-2 bg-slate-700/50 hover:bg-slate-700 px-3 py-1.5 rounded-full border border-slate-600 mr-1 shadow-sm transition-colors group">
               <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
               <span className="text-xs font-bold text-slate-300 group-hover:text-white transition-colors">
@@ -60,13 +63,13 @@ export default function Header({
               </span>
             </button>
 
-            {/* Botão VISITANTES (Novo) */}
-            <button onClick={onOpenVisitors} className="hidden md:flex items-center gap-2 bg-slate-700/50 hover:bg-slate-700 px-3 py-1.5 rounded-full border border-slate-600 mr-1 shadow-sm transition-colors group">
+            {/* Mostrador de VISITANTES (Apenas visual, conta conexões) */}
+            <div className="hidden md:flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-full border border-slate-700 mr-1 cursor-default">
               <FaEye className="text-purple-400" size={12} />
-              <span className="text-xs font-bold text-slate-300 group-hover:text-white transition-colors">
-                <span className="text-white">{visitorsCount}</span> Visitantes
+              <span className="text-xs font-bold text-slate-400">
+                <span className="text-white">{visitorsCount}</span> Acessando
               </span>
-            </button>
+            </div>
 
             {/* Mobile: Botões compactos */}
              <div className="flex md:hidden gap-1 mr-1">
@@ -74,12 +77,11 @@ export default function Header({
                      <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-green-500 animate-pulse border border-slate-800"></div>
                      <span className="text-xs font-bold text-white">{onlineCount}</span>
                  </button>
-                 <button onClick={onOpenVisitors} className="flex items-center justify-center w-8 h-8 bg-slate-700/50 hover:bg-slate-700 rounded-full border border-slate-600">
+                 <div className="flex items-center justify-center w-8 h-8 bg-slate-800/50 rounded-full border border-slate-700 relative">
                      <FaEye className="text-purple-400" size={12} />
-                     <span className="absolute top-0 right-0 text-[8px] bg-slate-800 text-white px-1 rounded-full border border-slate-600 -mr-1 -mt-1">{visitorsCount}</span>
-                 </button>
+                     <span className="absolute top-0 right-0 text-[8px] bg-slate-900 text-white px-1 rounded-full border border-slate-700 -mr-1 -mt-1 shadow-sm">{visitorsCount}</span>
+                 </div>
              </div>
-
 
             <button onClick={onOpenSessions} className="text-slate-400 hover:text-white transition-colors p-2" title="Histórico">
               <FaFolderOpen className="text-lg md:text-xl" />

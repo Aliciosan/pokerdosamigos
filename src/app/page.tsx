@@ -11,23 +11,21 @@ import AddPlayerModal from '@/components/Modals/AddPlayerModal';
 import ScheduleModal from '@/components/Modals/ScheduleModal';
 import SessionsModal from '@/components/Modals/SessionsModal';
 import OnlinePlayersModal from '@/components/Modals/OnlinePlayersModal';
-import VisitorsModal from '@/components/Modals/VisitorsModal';
 import { FaCalendarAlt, FaPlus, FaPowerOff } from 'react-icons/fa';
 
 export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   
   const { 
-    players, confirmedPlayers, schedule, sessions, visitors,
+    players, confirmedPlayers, schedule, sessions, accessCount, // Pegamos o contador aqui
     notifications, toasts, soundEnabled,
     addPlayer, updateRebuy, checkoutPlayer, finishSession, addSchedule, deleteSchedule, clearSessions,
-    addVisitor, removeVisitor, 
     removeToast, setSoundEnabled, markAllRead, clearNotifications,
-    // Funções Supabase
     removeVisualSeat, updateSeatPosition, swapSeats, deleteHistoryItem, clearHistory
   } = usePokerGame();
   
-  const [activeModal, setActiveModal] = useState<'add' | 'schedule' | 'sessions' | 'online' | 'visitors' | null>(null);
+  // Removemos 'visitors' do activeModal
+  const [activeModal, setActiveModal] = useState<'add' | 'schedule' | 'sessions' | 'online' | null>(null);
   const [selectedSeatId, setSelectedSeatId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -40,67 +38,45 @@ export default function Home() {
       setIsLoggedIn(true);
   };
 
-  // --- LÓGICA DE SELEÇÃO DA MESA (ONLINE) ---
   const handleSeatClick = (seatNum: number) => {
     const occupant = confirmedPlayers.find(p => p.seat === seatNum);
-
     if (selectedSeatId) {
-        // Clicou no mesmo -> Deseleciona
-        if (occupant && occupant.id === selectedSeatId) {
-            setSelectedSeatId(null);
-            return;
-        }
-
-        // Clicou em outro jogador -> TROCA (Swap Online)
+        if (occupant && occupant.id === selectedSeatId) { setSelectedSeatId(null); return; }
         if (occupant) {
-            swapSeats(selectedSeatId, occupant.id); // Função do Hook
+            swapSeats(selectedSeatId, occupant.id);
             setSelectedSeatId(null);
             return;
         }
-
-        // Clicou em vazio -> MOVE (Update Online)
-        updateSeatPosition(selectedSeatId, seatNum); // Função do Hook
+        updateSeatPosition(selectedSeatId, seatNum);
         setSelectedSeatId(null);
-
     } else {
-        // Seleciona o jogador
         if (occupant) setSelectedSeatId(occupant.id);
     }
   };
+  const handleRemoveSeat = (id: number) => { if(confirm("Remover da mesa visual?")) { if(selectedSeatId === id) setSelectedSeatId(null); removeVisualSeat(id); }};
 
-  const handleRemoveSeat = (id: number) => {
-    if(confirm("Remover da mesa visual?")) {
-        if(selectedSeatId === id) setSelectedSeatId(null);
-        removeVisualSeat(id); // Função do Hook
-    }
-  };
-
-  // --- CÁLCULOS ---
   const activeCount = players.filter(p => p.status === 'playing').length;
   const finishedCount = players.filter(p => p.status === 'finished').length;
   const totalInvested = players.reduce((acc, p) => acc + p.buyIn + p.rebuy, 0);
   const totalCashOut = players.reduce((acc, p) => acc + (p.cashOut || 0), 0);
   const balance = totalInvested - totalCashOut;
-
   const handleDeleteHistory = (id: number) => { if(confirm("Apagar registro?")) deleteHistoryItem(id); };
   const handleClearHistory = () => { if(confirm("Limpar histórico?")) clearHistory(); };
 
-  if (!isLoggedIn) {
-      return <LoginScreen onLogin={handleLogin} />;
-  }
+  if (!isLoggedIn) return <LoginScreen onLogin={handleLogin} />;
 
   return (
     <main className="min-h-screen bg-slate-900 text-slate-100 pb-24 font-sans overflow-x-hidden">
       <ToastContainer toasts={toasts} removeToast={removeToast} />
 
       <Header 
-        onlineCount={activeCount} visitorsCount={visitors.length} 
+        onlineCount={activeCount} 
+        accessCount={accessCount} // Passa o contador automático
         notifications={notifications} soundEnabled={soundEnabled}
         setSoundEnabled={setSoundEnabled} onMarkRead={markAllRead} onClearNotifs={clearNotifications}
         onOpenSchedule={() => setActiveModal('schedule')} 
         onOpenSessions={() => setActiveModal('sessions')}
         onOpenOnline={() => setActiveModal('online')}
-        onOpenVisitors={() => setActiveModal('visitors')}
       />
 
       <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-8">
@@ -153,7 +129,6 @@ export default function Home() {
       {activeModal === 'schedule' && <ScheduleModal schedule={schedule} onAdd={addSchedule} onDelete={deleteSchedule} onClose={() => setActiveModal(null)} />}
       {activeModal === 'sessions' && <SessionsModal sessions={sessions} onClear={clearSessions} onClose={() => setActiveModal(null)} />}
       {activeModal === 'online' && <OnlinePlayersModal players={players} onClose={() => setActiveModal(null)} />}
-      {activeModal === 'visitors' && <VisitorsModal visitors={visitors} onAdd={addVisitor} onRemove={removeVisitor} onClose={() => setActiveModal(null)} />}
     </main>
   );
 }
