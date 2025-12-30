@@ -1,12 +1,13 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { FaVolumeUp, FaVolumeMute, FaFolderOpen, FaRegBell, FaTrash, FaEye } from 'react-icons/fa';
+import { FaVolumeUp, FaVolumeMute, FaFolderOpen, FaRegBell, FaTrash, FaEye, FaSignOutAlt } from 'react-icons/fa'; // Import FaSignOutAlt
 import { GiPokerHand } from 'react-icons/gi';
 import { NotificationItem } from '@/types';
 
 interface Props {
   onlineCount: number;
-  accessCount: number; // Número total de conexões
+  visitorsCount: number; // Alterado para visitorsCount (do seu pedido anterior)
+  accessCount: number;   // Adicionado accessCount para manter compatibilidade
   notifications: NotificationItem[];
   soundEnabled: boolean;
   setSoundEnabled: (val: boolean) => void;
@@ -15,19 +16,20 @@ interface Props {
   onOpenSchedule: () => void;
   onOpenSessions: () => void;
   onOpenOnline: () => void;
+  onLogout: () => void; // NOVO: Função de Logout
 }
 
+// Nota: O componente page.tsx vai passar 'accessCount' e usaremos ele para calcular visitantes
 export default function Header({ 
     onlineCount, accessCount, notifications, soundEnabled, setSoundEnabled, 
-    onMarkRead, onClearNotifs, onOpenSchedule, onOpenSessions, onOpenOnline 
+    onMarkRead, onClearNotifs, onOpenSchedule, onOpenSessions, onOpenOnline, onLogout 
 }: Props) {
   const [time, setTime] = useState("00:00");
   const [showNotifMenu, setShowNotifMenu] = useState(false);
   const unreadCount = notifications.filter(n => !n.read).length;
-
-  // Calculamos visitantes como: Pessoas acessando - Jogadores sentados
-  // Se o cálculo der negativo (lag de rede), mostramos 0
-  const visitorsCount = Math.max(0, accessCount - onlineCount);
+  
+  // Cálculo de visitantes (Conectados - Jogando)
+  const realVisitors = Math.max(0, accessCount - onlineCount);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -55,33 +57,29 @@ export default function Header({
           {/* Ações */}
           <div className="flex items-center gap-1 md:gap-3">
             
-            {/* Botão JOGANDO (Abre lista de quem está sentado) */}
-            <button onClick={onOpenOnline} className="hidden md:flex items-center gap-2 bg-slate-700/50 hover:bg-slate-700 px-3 py-1.5 rounded-full border border-slate-600 mr-1 shadow-sm transition-colors group">
-              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
-              <span className="text-xs font-bold text-slate-300 group-hover:text-white transition-colors">
-                <span className="text-white">{onlineCount}</span> Jogando
-              </span>
-            </button>
-
-            {/* Mostrador de VISITANTES (Apenas visual, conta conexões) */}
-            <div className="hidden md:flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-full border border-slate-700 mr-1 cursor-default">
-              <FaEye className="text-purple-400" size={12} />
-              <span className="text-xs font-bold text-slate-400">
-                <span className="text-white">{visitorsCount}</span> Acessando
-              </span>
+            {/* Botões de Status (Jogando / Visitantes) */}
+            <div className="hidden md:flex gap-2">
+                <button onClick={onOpenOnline} className="flex items-center gap-2 bg-slate-700/50 hover:bg-slate-700 px-3 py-1.5 rounded-full border border-slate-600 transition-colors">
+                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                    <span className="text-xs font-bold text-slate-300"><span className="text-white">{onlineCount}</span> Jogando</span>
+                </button>
+                <div className="flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-full border border-slate-700 cursor-default">
+                    <FaEye className="text-purple-400" size={12} />
+                    <span className="text-xs font-bold text-slate-400"><span className="text-white">{realVisitors}</span> Visitantes</span>
+                </div>
             </div>
 
-            {/* Mobile: Botões compactos */}
-             <div className="flex md:hidden gap-1 mr-1">
+            {/* Mobile Status */}
+            <div className="flex md:hidden gap-1 mr-1">
                  <button onClick={onOpenOnline} className="flex items-center justify-center w-8 h-8 bg-slate-700/50 hover:bg-slate-700 rounded-full border border-slate-600 relative">
                      <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-green-500 animate-pulse border border-slate-800"></div>
                      <span className="text-xs font-bold text-white">{onlineCount}</span>
                  </button>
                  <div className="flex items-center justify-center w-8 h-8 bg-slate-800/50 rounded-full border border-slate-700 relative">
                      <FaEye className="text-purple-400" size={12} />
-                     <span className="absolute top-0 right-0 text-[8px] bg-slate-900 text-white px-1 rounded-full border border-slate-700 -mr-1 -mt-1 shadow-sm">{visitorsCount}</span>
+                     <span className="absolute top-0 right-0 text-[8px] bg-slate-900 text-white px-1 rounded-full border border-slate-700 -mr-1 -mt-1 shadow-sm">{realVisitors}</span>
                  </div>
-             </div>
+            </div>
 
             <button onClick={onOpenSessions} className="text-slate-400 hover:text-white transition-colors p-2" title="Histórico">
               <FaFolderOpen className="text-lg md:text-xl" />
@@ -119,6 +117,12 @@ export default function Header({
                     </>
                 )}
             </div>
+
+            {/* BOTÃO SAIR (NOVO) */}
+            <button onClick={onLogout} className="text-red-400 hover:text-red-200 transition-colors p-2 ml-1" title="Sair do Sistema">
+                <FaSignOutAlt className="text-lg md:text-xl" />
+            </button>
+
           </div>
         </div>
       </div>

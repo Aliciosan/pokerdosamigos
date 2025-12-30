@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase'; // Importe o supabase
 import { usePokerGame } from '@/hooks/usePokerGame';
 import Header from '@/components/Header';
 import PokerTable from '@/components/PokerTable';
@@ -14,56 +15,84 @@ import OnlinePlayersModal from '@/components/Modals/OnlinePlayersModal';
 import { FaCalendarAlt, FaPlus, FaPowerOff } from 'react-icons/fa';
 
 export default function Home() {
+  // Estados de Login
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState("");
   
   const { 
-    players, confirmedPlayers, schedule, sessions, accessCount, // Pegamos o contador aqui
+    players, confirmedPlayers, schedule, sessions, accessCount,
     notifications, toasts, soundEnabled,
     addPlayer, updateRebuy, checkoutPlayer, finishSession, addSchedule, deleteSchedule, clearSessions,
     removeToast, setSoundEnabled, markAllRead, clearNotifications,
     removeVisualSeat, updateSeatPosition, swapSeats, deleteHistoryItem, clearHistory
   } = usePokerGame();
   
-  // Removemos 'visitors' do activeModal
   const [activeModal, setActiveModal] = useState<'add' | 'schedule' | 'sessions' | 'online' | null>(null);
   const [selectedSeatId, setSelectedSeatId] = useState<number | null>(null);
 
   useEffect(() => {
-      const savedLogin = localStorage.getItem('pokerLogin_v33');
-      if(savedLogin === 'true') setIsLoggedIn(true);
+      // Verifica se já estava logado na sessão atual
+      const sessionUser = sessionStorage.getItem('pokerUser');
+      if(sessionUser) setIsLoggedIn(true);
   }, []);
 
-  const handleLogin = () => {
-      localStorage.setItem('pokerLogin_v33', 'true');
-      setIsLoggedIn(true);
+  // --- NOVA FUNÇÃO DE LOGIN ---
+  const handleLogin = async (username: string, pass: string) => {
+      setLoginLoading(true);
+      setLoginError("");
+
+      try {
+          // Verifica na tabela AppUser se existe o par usuario/senha
+          const { data, error } = await supabase
+            .from('AppUser')
+            .select('*')
+            .eq('username', username)
+            .eq('password', pass) // Nota: Em produção real, senhas devem ser hash (bcrypt)
+            .single();
+
+          if (error || !data) {
+              setLoginError("Usuário ou senha incorretos.");
+          } else {
+              // Sucesso
+              sessionStorage.setItem('pokerUser', username);
+              setIsLoggedIn(true);
+          }
+      } catch (err) {
+          setLoginError("Erro de conexão.");
+      } finally {
+          setLoginLoading(false);
+      }
   };
 
-  const handleSeatClick = (seatNum: number) => {
-    const occupant = confirmedPlayers.find(p => p.seat === seatNum);
-    if (selectedSeatId) {
-        if (occupant && occupant.id === selectedSeatId) { setSelectedSeatId(null); return; }
-        if (occupant) {
-            swapSeats(selectedSeatId, occupant.id);
-            setSelectedSeatId(null);
-            return;
-        }
-        updateSeatPosition(selectedSeatId, seatNum);
-        setSelectedSeatId(null);
-    } else {
-        if (occupant) setSelectedSeatId(occupant.id);
-    }
+  const handleLogout = () => {
+      sessionStorage.removeItem('pokerUser');
+      setIsLoggedIn(false);
   };
-  const handleRemoveSeat = (id: number) => { if(confirm("Remover da mesa visual?")) { if(selectedSeatId === id) setSelectedSeatId(null); removeVisualSeat(id); }};
 
+  // --- CÁLCULOS E AÇÕES (Iguais) ---
   const activeCount = players.filter(p => p.status === 'playing').length;
   const finishedCount = players.filter(p => p.status === 'finished').length;
   const totalInvested = players.reduce((acc, p) => acc + p.buyIn + p.rebuy, 0);
   const totalCashOut = players.reduce((acc, p) => acc + (p.cashOut || 0), 0);
   const balance = totalInvested - totalCashOut;
+
+  const handleSeatClick = (seatNum: number) => {
+    const occupant = confirmedPlayers.find(p => p.seat === seatNum);
+    if (selectedSeatId) {
+        if (occupant && occupant.id === selectedSeatId) { setSelectedSeatId(null); return; }
+        if (occupant) { swapSeats(selectedSeatId, occupant.id); setSelectedSeatId(null); return; }
+        updateSeatPosition(selectedSeatId, seatNum); setSelectedSeatId(null);
+    } else { if (occupant) setSelectedSeatId(occupant.id); }
+  };
+  const handleRemoveSeat = (id: number) => { if(confirm("Remover da mesa visual?")) { if(selectedSeatId === id) setSelectedSeatId(null); removeVisualSeat(id); }};
   const handleDeleteHistory = (id: number) => { if(confirm("Apagar registro?")) deleteHistoryItem(id); };
   const handleClearHistory = () => { if(confirm("Limpar histórico?")) clearHistory(); };
 
-  if (!isLoggedIn) return <LoginScreen onLogin={handleLogin} />;
+  // Exibir Tela de Login se não estiver logado
+  if (!isLoggedIn) {
+      return <LoginScreen onLogin={handleLogin} loading={loginLoading} error={loginError} />;
+  }
 
   return (
     <main className="min-h-screen bg-slate-900 text-slate-100 pb-24 font-sans overflow-x-hidden">
@@ -71,12 +100,14 @@ export default function Home() {
 
       <Header 
         onlineCount={activeCount} 
-        accessCount={accessCount} // Passa o contador automático
+        accessCount={accessCount}
+        visitorsCount={0} // O Header calcula sozinho agora baseado no accessCount
         notifications={notifications} soundEnabled={soundEnabled}
         setSoundEnabled={setSoundEnabled} onMarkRead={markAllRead} onClearNotifs={clearNotifications}
         onOpenSchedule={() => setActiveModal('schedule')} 
         onOpenSessions={() => setActiveModal('sessions')}
         onOpenOnline={() => setActiveModal('online')}
+        onLogout={handleLogout} // Passa a função de sair
       />
 
       <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-8">
@@ -111,9 +142,7 @@ export default function Home() {
         </div>
 
         <ActiveList players={players} onRebuy={updateRebuy} onCheckout={checkoutPlayer} onDelete={(id) => { if(confirm("Cancelar entrada?")) deleteHistoryItem(id); }} />
-        
         <hr className="border-slate-800 my-8" />
-        
         <HistoryList players={players} onDelete={handleDeleteHistory} onClear={handleClearHistory} />
 
         <div className="bg-slate-800/50 rounded-2xl py-8 px-2 md:p-8 border border-slate-700 overflow-hidden relative mt-8 flex justify-center">
