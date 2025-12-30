@@ -1,11 +1,12 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { FaVolumeUp, FaVolumeMute, FaFolderOpen, FaRegBell, FaTrash, FaChevronDown } from 'react-icons/fa';
+import { FaVolumeUp, FaVolumeMute, FaFolderOpen, FaRegBell, FaTrash, FaChevronDown, FaEye } from 'react-icons/fa';
 import { GiPokerHand } from 'react-icons/gi';
 import { NotificationItem } from '@/types';
 
 interface Props {
   onlineCount: number;
+  visitorsCount: number; // Novo prop
   notifications: NotificationItem[];
   soundEnabled: boolean;
   setSoundEnabled: (val: boolean) => void;
@@ -13,12 +14,13 @@ interface Props {
   onClearNotifs: () => void;
   onOpenSchedule: () => void;
   onOpenSessions: () => void;
-  onOpenOnline: () => void; // Nova prop
+  onOpenOnline: () => void;
+  onOpenVisitors: () => void; // Novo prop
 }
 
 export default function Header({ 
-    onlineCount, notifications, soundEnabled, setSoundEnabled, 
-    onMarkRead, onClearNotifs, onOpenSchedule, onOpenSessions, onOpenOnline 
+    onlineCount, visitorsCount, notifications, soundEnabled, setSoundEnabled, 
+    onMarkRead, onClearNotifs, onOpenSchedule, onOpenSessions, onOpenOnline, onOpenVisitors 
 }: Props) {
   const [time, setTime] = useState("00:00");
   const [showNotifMenu, setShowNotifMenu] = useState(false);
@@ -49,20 +51,34 @@ export default function Header({
 
           {/* Ações */}
           <div className="flex items-center gap-1 md:gap-3">
-            {/* Botão Online AGORA CLICÁVEL */}
+            
+            {/* Botão JOGANDO (Antigo Online) */}
             <button onClick={onOpenOnline} className="hidden md:flex items-center gap-2 bg-slate-700/50 hover:bg-slate-700 px-3 py-1.5 rounded-full border border-slate-600 mr-1 shadow-sm transition-colors group">
               <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
               <span className="text-xs font-bold text-slate-300 group-hover:text-white transition-colors">
-                <span className="text-white">{onlineCount}</span> Online
+                <span className="text-white">{onlineCount}</span> Jogando
               </span>
-              <FaChevronDown size={10} className="text-slate-500 group-hover:text-slate-300"/>
             </button>
 
-            {/* Versão Mobile do Botão Online (ícone pequeno) */}
-             <button onClick={onOpenOnline} className="md:hidden flex items-center justify-center w-8 h-8 bg-slate-700/50 hover:bg-slate-700 rounded-full border border-slate-600 mr-1 relative">
-                 <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-green-500 animate-pulse border border-slate-800"></div>
-                 <span className="text-xs font-bold text-white">{onlineCount}</span>
-             </button>
+            {/* Botão VISITANTES (Novo) */}
+            <button onClick={onOpenVisitors} className="hidden md:flex items-center gap-2 bg-slate-700/50 hover:bg-slate-700 px-3 py-1.5 rounded-full border border-slate-600 mr-1 shadow-sm transition-colors group">
+              <FaEye className="text-purple-400" size={12} />
+              <span className="text-xs font-bold text-slate-300 group-hover:text-white transition-colors">
+                <span className="text-white">{visitorsCount}</span> Visitantes
+              </span>
+            </button>
+
+            {/* Mobile: Botões compactos */}
+             <div className="flex md:hidden gap-1 mr-1">
+                 <button onClick={onOpenOnline} className="flex items-center justify-center w-8 h-8 bg-slate-700/50 hover:bg-slate-700 rounded-full border border-slate-600 relative">
+                     <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-green-500 animate-pulse border border-slate-800"></div>
+                     <span className="text-xs font-bold text-white">{onlineCount}</span>
+                 </button>
+                 <button onClick={onOpenVisitors} className="flex items-center justify-center w-8 h-8 bg-slate-700/50 hover:bg-slate-700 rounded-full border border-slate-600">
+                     <FaEye className="text-purple-400" size={12} />
+                     <span className="absolute top-0 right-0 text-[8px] bg-slate-800 text-white px-1 rounded-full border border-slate-600 -mr-1 -mt-1">{visitorsCount}</span>
+                 </button>
+             </div>
 
 
             <button onClick={onOpenSessions} className="text-slate-400 hover:text-white transition-colors p-2" title="Histórico">

@@ -38,3 +38,11 @@ export interface NotificationItem {
   read: boolean;
   date: string;
 }
+
+// ... (outros tipos existentes)
+
+export interface Visitor {
+  id: number;
+  name: string;
+  since: string;
+}

@@ -6,30 +6,28 @@ import PokerTable from '@/components/PokerTable';
 import ActiveList from '@/components/ActiveList';
 import HistoryList from '@/components/HistoryList';
 import ToastContainer from '@/components/ToastContainer';
-import LoginScreen from '@/components/LoginScreen'; // Importa a tela de login
+import LoginScreen from '@/components/LoginScreen';
 import AddPlayerModal from '@/components/Modals/AddPlayerModal';
 import ScheduleModal from '@/components/Modals/ScheduleModal';
 import SessionsModal from '@/components/Modals/SessionsModal';
-import OnlinePlayersModal from '@/components/Modals/OnlinePlayersModal'; // Importa o novo modal
+import OnlinePlayersModal from '@/components/Modals/OnlinePlayersModal';
+import VisitorsModal from '@/components/Modals/VisitorsModal'; // Novo Modal
 import { FaCalendarAlt, FaPlus, FaPowerOff } from 'react-icons/fa';
 
 export default function Home() {
-  // Estado de Login (simples, sem backend real)
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   
   const { 
-    players, confirmedPlayers, schedule, sessions,
+    players, confirmedPlayers, schedule, sessions, visitors, // Visitantes aqui
     notifications, toasts, soundEnabled,
     addPlayer, updateRebuy, checkoutPlayer, finishSession, addSchedule, deleteSchedule, clearSessions,
-    setConfirmedPlayers, setPlayers, 
+    setConfirmedPlayers, setPlayers, addVisitor, removeVisitor, // Funções de visitante
     removeToast, setSoundEnabled, markAllRead, clearNotifications
   } = usePokerGame();
   
-  // Estado para controlar qual modal está aberto (incluindo o novo 'online')
-  const [activeModal, setActiveModal] = useState<'add' | 'schedule' | 'sessions' | 'online' | null>(null);
+  const [activeModal, setActiveModal] = useState<'add' | 'schedule' | 'sessions' | 'online' | 'visitors' | null>(null);
   const [selectedSeatId, setSelectedSeatId] = useState<number | null>(null);
 
-  // Efeito para verificar login salvo (opcional)
   useEffect(() => {
       const savedLogin = localStorage.getItem('pokerLogin_v33');
       if(savedLogin === 'true') setIsLoggedIn(true);
@@ -40,7 +38,7 @@ export default function Home() {
       setIsLoggedIn(true);
   };
 
-  // --- LÓGICA DE SELEÇÃO DA MESA ---
+  // --- LÓGICA DE MESA E CÁLCULOS (Manter igual) ---
   const handleSeatClick = (seatNum: number) => {
     const occupant = confirmedPlayers.find(p => p.seat === seatNum);
     if (selectedSeatId) {
@@ -60,26 +58,16 @@ export default function Home() {
         if (occupant) setSelectedSeatId(occupant.id);
     }
   };
-  const handleRemoveSeat = (id: number) => {
-    if(confirm("Remover da mesa visual?")) {
-        if(selectedSeatId === id) setSelectedSeatId(null);
-        setConfirmedPlayers(prev => prev.filter(p => p.id !== id));
-    }
-  };
-
-  // --- CÁLCULOS ---
+  const handleRemoveSeat = (id: number) => { if(confirm("Remover da mesa visual?")) { if(selectedSeatId === id) setSelectedSeatId(null); setConfirmedPlayers(prev => prev.filter(p => p.id !== id)); }};
   const activeCount = players.filter(p => p.status === 'playing').length;
   const finishedCount = players.filter(p => p.status === 'finished').length;
   const totalInvested = players.reduce((acc, p) => acc + p.buyIn + p.rebuy, 0);
   const totalCashOut = players.reduce((acc, p) => acc + (p.cashOut || 0), 0);
   const balance = totalInvested - totalCashOut;
-
-  // --- FUNÇÕES DE DEL/CLEAR ---
   const handleDeleteHistory = (id: number) => { if(confirm("Apagar registro?")) setPlayers(prev => prev.filter(p => p.id !== id)); };
   const handleClearHistory = () => { if(confirm("Limpar histórico?")) setPlayers(prev => prev.filter(p => p.status === 'playing')); };
 
 
-  // --- RENDERIZAÇÃO CONDICIONAL (LOGIN vs APP) ---
   if (!isLoggedIn) {
       return <LoginScreen onLogin={handleLogin} />;
   }
@@ -89,14 +77,16 @@ export default function Home() {
       <ToastContainer toasts={toasts} removeToast={removeToast} />
 
       <Header 
-        onlineCount={activeCount} notifications={notifications} soundEnabled={soundEnabled}
+        onlineCount={activeCount} 
+        visitorsCount={visitors.length} // Passa contagem
+        notifications={notifications} soundEnabled={soundEnabled}
         setSoundEnabled={setSoundEnabled} onMarkRead={markAllRead} onClearNotifs={clearNotifications}
         onOpenSchedule={() => setActiveModal('schedule')} 
         onOpenSessions={() => setActiveModal('sessions')}
-        onOpenOnline={() => setActiveModal('online')} // Abre o novo modal
+        onOpenOnline={() => setActiveModal('online')}
+        onOpenVisitors={() => setActiveModal('visitors')} // Abre modal visitantes
       />
 
-      {/* Espaçamento aumentado para mobile (p-4 md:p-6 space-y-8) */}
       <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-8">
         
         {/* Banner Próximo Jogo */}
@@ -121,7 +111,7 @@ export default function Home() {
             <div className="bg-slate-800 p-4 rounded-xl border border-slate-700"><p className="text-[10px] text-slate-500 uppercase font-bold">Balanço</p><p className="text-2xl font-bold truncate">{balance}</p></div>
         </div>
         
-        {/* Barra de Ações (Botões maiores no mobile) */}
+        {/* Barra de Ações */}
         <div className="flex flex-col gap-4 pt-2">
           <h2 className="text-lg font-bold text-green-400">Na Mesa (Ao Vivo)</h2>
           <div className="flex flex-col md:flex-row gap-3 w-full">
@@ -137,7 +127,7 @@ export default function Home() {
         
         <HistoryList players={players} onDelete={handleDeleteHistory} onClear={handleClearHistory} />
 
-        {/* Mesa Visual Responsiva (Vertical no mobile) */}
+        {/* Mesa Visual */}
         <div className="bg-slate-800/50 rounded-2xl py-8 px-2 md:p-8 border border-slate-700 overflow-hidden relative mt-8 flex justify-center">
             <div className="w-full">
                 <h2 className="text-center text-lg font-bold text-blue-400 mb-2 uppercase tracking-wider">Lugares</h2>
@@ -147,11 +137,12 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Modais (incluindo o novo online) */}
+      {/* Modais */}
       {activeModal === 'add' && <AddPlayerModal onClose={() => setActiveModal(null)} onConfirm={addPlayer} />}
       {activeModal === 'schedule' && <ScheduleModal schedule={schedule} onAdd={addSchedule} onDelete={deleteSchedule} onClose={() => setActiveModal(null)} />}
       {activeModal === 'sessions' && <SessionsModal sessions={sessions} onClear={clearSessions} onClose={() => setActiveModal(null)} />}
       {activeModal === 'online' && <OnlinePlayersModal players={players} onClose={() => setActiveModal(null)} />}
+      {activeModal === 'visitors' && <VisitorsModal visitors={visitors} onAdd={addVisitor} onRemove={removeVisitor} onClose={() => setActiveModal(null)} />}
     </main>
   );
 }
