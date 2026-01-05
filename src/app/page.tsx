@@ -12,10 +12,11 @@ import AddPlayerModal from '@/components/Modals/AddPlayerModal';
 import ScheduleModal from '@/components/Modals/ScheduleModal';
 import SessionsModal from '@/components/Modals/SessionsModal';
 import OnlinePlayersModal from '@/components/Modals/OnlinePlayersModal';
-import { FaCalendarAlt, FaPlus, FaPowerOff, FaSignOutAlt } from 'react-icons/fa';
+import { FaCalendarAlt, FaPlus, FaPowerOff, FaSignOutAlt, FaUserCheck } from 'react-icons/fa';
 
 export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState(""); // Guarda o nome do usuário logado
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
   
@@ -34,6 +35,7 @@ export default function Home() {
   useEffect(() => {
       const sessionUser = sessionStorage.getItem('pokerUser');
       if(sessionUser) {
+          setCurrentUser(sessionUser);
           setIsLoggedIn(true);
       }
   }, []);
@@ -48,6 +50,7 @@ export default function Home() {
               setLoginError("Usuário ou senha incorretos."); 
           } else { 
               sessionStorage.setItem('pokerUser', username);
+              setCurrentUser(username);
               setIsLoggedIn(true); 
           }
       } catch (err) { setLoginError("Erro de conexão."); } finally { setLoginLoading(false); }
@@ -69,6 +72,7 @@ export default function Home() {
               setLoginError("Erro ao criar conta.");
           } else {
               sessionStorage.setItem('pokerUser', username);
+              setCurrentUser(username);
               setIsLoggedIn(true);
           }
       } catch (err) { setLoginError("Erro ao conectar."); } finally { setLoginLoading(false); }
@@ -76,21 +80,19 @@ export default function Home() {
 
   const handleLogout = () => { 
       sessionStorage.removeItem('pokerUser');
+      setCurrentUser("");
       setIsLoggedIn(false); 
   };
 
-  // --- CÁLCULOS FINANCEIROS CORRIGIDOS ---
+  // --- CÁLCULOS ---
   const activeCount = players ? players.filter(p => p.status === 'playing').length : 0;
   const finishedCount = players ? players.filter(p => p.status === 'finished').length : 0;
-  
-  // Total que entrou no jogo (Buy-ins + Rebuys)
   const totalInvested = players ? players.reduce((acc, p) => acc + p.buyIn + p.rebuy, 0) : 0;
-  
-  // Total que já saiu do jogo (CashOuts)
   const totalCashOut = players ? players.reduce((acc, p) => acc + (p.cashOut || 0), 0) : 0;
-  
-  // Dinheiro REAL na mesa (Entrou - Saiu)
   const moneyOnTable = totalInvested - totalCashOut;
+
+  // Verifica se o usuário atual JÁ ESTÁ jogando
+  const isPlaying = players.some(p => p.name === currentUser && p.status === 'playing');
 
   const handleSeatClick = (seatNum: number) => {
     const occupant = confirmedPlayers.find(p => p.seat === seatNum);
@@ -124,6 +126,7 @@ export default function Home() {
 
       <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-6 md:space-y-8">
         
+        {/* Banner Próximo Jogo */}
         {schedule && schedule.length > 0 && (
            <div className="bg-blue-900/30 border border-blue-800 rounded-xl p-4 flex flex-col md:flex-row gap-4 justify-between items-center shadow-lg animate-fade">
               <div className="flex items-center gap-3 w-full">
@@ -137,32 +140,39 @@ export default function Home() {
            </div>
         )}
 
-        {/* STATS GRID CORRIGIDO */}
+        {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-            {/* Jogadores Ativos */}
             <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
                 <p className="text-[10px] text-slate-500 uppercase font-bold">Jogando</p>
                 <p className="text-2xl font-bold text-white">{activeCount}</p>
             </div>
-            
-            {/* Dinheiro NA MESA (Agora desconta quem saiu) */}
             <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
                 <p className="text-[10px] text-slate-500 uppercase font-bold">Na Mesa (Real)</p>
                 <p className="text-2xl font-bold text-green-400 truncate">R$ {moneyOnTable}</p>
             </div>
-            
-            {/* Jogadores que Saíram */}
             <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
                 <p className="text-[10px] text-slate-500 uppercase font-bold">Saíram</p>
                 <p className="text-2xl font-bold text-slate-300">{finishedCount}</p>
             </div>
-            
-            {/* Total Arrecadado (Histórico Bruto) */}
             <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
                 <p className="text-[10px] text-slate-500 uppercase font-bold">Total Arrecadado</p>
                 <p className="text-2xl font-bold text-blue-300 truncate">R$ {totalInvested}</p>
             </div>
         </div>
+
+        {/* --- NOVO: Botão de Ação Rápida para o Usuário Logado --- */}
+        {!isPlaying && (
+            <button 
+                onClick={() => setActiveModal('add')} 
+                className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white py-4 rounded-2xl shadow-xl shadow-green-900/30 flex items-center justify-center gap-3 transform transition-all active:scale-95 animate-fade border border-green-500/30"
+            >
+                <div className="bg-white/20 p-2 rounded-full"><FaUserCheck size={20} /></div>
+                <div className="text-left">
+                    <p className="text-xs font-bold text-green-200 uppercase">Você está observando</p>
+                    <p className="text-lg font-bold leading-none">Entrar na Mesa como {currentUser}</p>
+                </div>
+            </button>
+        )}
         
         <div className="flex flex-col gap-4 pt-2">
           <h2 className="text-lg font-bold text-green-400">Na Mesa (Ao Vivo)</h2>
@@ -195,7 +205,7 @@ export default function Home() {
         </div>
       </div>
 
-      {activeModal === 'add' && <AddPlayerModal onClose={() => setActiveModal(null)} onConfirm={addPlayer} />}
+      {activeModal === 'add' && <AddPlayerModal onClose={() => setActiveModal(null)} onConfirm={addPlayer} initialName={currentUser} />}
       {activeModal === 'schedule' && <ScheduleModal schedule={schedule} onAdd={addSchedule} onDelete={deleteSchedule} onClose={() => setActiveModal(null)} />}
       {activeModal === 'sessions' && <SessionsModal sessions={sessions} onClear={clearSessions} onClose={() => setActiveModal(null)} />}
       {activeModal === 'online' && <OnlinePlayersModal players={players} onClose={() => setActiveModal(null)} />}

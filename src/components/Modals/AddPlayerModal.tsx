@@ -1,57 +1,73 @@
 import { useState } from 'react';
-import { FaCamera, FaTimes } from 'react-icons/fa';
+import { FaTimes, FaCheck, FaUserCircle } from 'react-icons/fa';
 
 interface Props {
   onClose: () => void;
   onConfirm: (name: string, buyIn: number, photo: string | null, isDealer: boolean) => void;
+  initialName?: string; // Nova propriedade opcional
 }
 
-export default function AddPlayerModal({ onClose, onConfirm }: Props) {
-  const [name, setName] = useState('');
-  const [buyIn, setBuyIn] = useState('');
+export default function AddPlayerModal({ onClose, onConfirm, initialName = "" }: Props) {
+  const [name, setName] = useState(initialName); // Começa com o nome do usuário logado
+  const [buyIn, setBuyIn] = useState("50"); // Valor padrão sugerido (pode mudar se quiser)
   const [isDealer, setIsDealer] = useState(false);
-  const [photo, setPhoto] = useState<string | null>(null);
-
-  const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (ev) => setPhoto(ev.target?.result as string);
-      reader.readAsDataURL(file);
-    }
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (name && buyIn) {
-      onConfirm(name, parseFloat(buyIn), photo, isDealer);
+      onConfirm(name, parseFloat(buyIn), null, isDealer);
       onClose();
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-      <div className="bg-slate-800 w-full max-w-md rounded-2xl border border-slate-700 p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-bold text-white">Novo Jogador</h3>
-          <button onClick={onClose}><FaTimes className="text-slate-400" /></button>
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade" onClick={onClose}>
+      <div className="bg-slate-800 w-full max-w-md rounded-2xl border border-slate-700 shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+        
+        <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50">
+          <h3 className="text-lg font-bold text-white flex items-center gap-2">
+            <FaUserCircle className="text-blue-500" />
+            Entrar na Mesa
+          </h3>
+          <button onClick={onClose} className="p-2 hover:bg-slate-700 rounded-full transition-colors">
+            <FaTimes className="text-slate-400" />
+          </button>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="flex flex-col items-center mb-4">
-            <label className="w-24 h-24 rounded-full bg-slate-900 border-2 border-dashed border-slate-600 flex items-center justify-center cursor-pointer overflow-hidden">
-              {photo ? <img src={photo} className="w-full h-full object-cover" /> : <div className="text-center text-slate-500 text-xs"><FaCamera className="text-xl mx-auto mb-1"/>Foto</div>}
-              <input type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
-            </label>
-          </div>
-          <input type="text" placeholder="Nome" value={name} onChange={e => setName(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 outline-none text-white" required />
-          <input type="number" placeholder="Buy-in (R$)" value={buyIn} onChange={e => setBuyIn(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 outline-none text-white" required />
-          
-          <div className="flex items-center gap-3 bg-slate-900 p-3 rounded-lg border border-slate-600 cursor-pointer" onClick={() => setIsDealer(!isDealer)}>
-            <input type="checkbox" checked={isDealer} onChange={() => {}} className="w-5 h-5 accent-blue-600" />
-            <label className="text-sm font-bold text-slate-300 cursor-pointer">Começar como Dealer</label>
-          </div>
+        
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Nome do Jogador</label>
+                <input 
+                    type="text" 
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-600 rounded-xl p-3 text-white outline-none focus:border-blue-500 transition-colors font-bold"
+                    placeholder="Nome..."
+                    autoFocus
+                />
+            </div>
 
-          <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-lg font-bold">Entrar</button>
+            <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Buy-In (R$)</label>
+                <input 
+                    type="number" 
+                    value={buyIn}
+                    onChange={e => setBuyIn(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-600 rounded-xl p-3 text-white outline-none focus:border-green-500 transition-colors font-mono text-lg"
+                    placeholder="0.00"
+                />
+            </div>
+
+            <div className="flex items-center gap-3 p-3 bg-slate-700/30 rounded-xl border border-slate-700/50 cursor-pointer" onClick={() => setIsDealer(!isDealer)}>
+                <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isDealer ? 'bg-blue-500 border-blue-500' : 'border-slate-500'}`}>
+                    {isDealer && <FaCheck size={10} className="text-white" />}
+                </div>
+                <span className="text-sm text-slate-300 font-bold">Começar como Dealer (Botão)</span>
+            </div>
+
+            <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-900/50 transition-all transform active:scale-95 flex items-center justify-center gap-2">
+                <FaCheck /> CONFIRMAR ENTRADA
+            </button>
         </form>
       </div>
     </div>
