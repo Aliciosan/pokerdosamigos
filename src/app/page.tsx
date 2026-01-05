@@ -31,8 +31,12 @@ export default function Home() {
   const [selectedSeatId, setSelectedSeatId] = useState<number | null>(null);
 
   useEffect(() => {
-      const sessionUser = sessionStorage.getItem('pokerUser');
-      if(sessionUser) setIsLoggedIn(true);
+      // COMENTE OU REMOVA ESTAS LINHAS PARA O LOGIN AUTOMÁTICO VOLTAR
+      // const sessionUser = sessionStorage.getItem('pokerUser');
+      // if(sessionUser) setIsLoggedIn(true);
+      
+      // ADICIONE ESTA LINHA PARA FORÇAR O LOGIN A APARECER
+      setIsLoggedIn(false); 
   }, []);
 
   // --- LOGIN ---
