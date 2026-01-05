@@ -15,7 +15,7 @@ export function usePokerGame() {
   const [toasts, setToasts] = useState<{id:number, message:string, type:'info'|'success'|'alert'}[]>([]);
   const [soundEnabled, setSoundEnabled] = useState(true);
 
-  // Função Central de Carregamento
+  // Carrega dados do banco
   const fetchData = async () => {
     const { data: p } = await supabase.from('Player').select('*').order('startTime', { ascending: false }).limit(50);
     if(p) setPlayers(p);
@@ -27,9 +27,8 @@ export function usePokerGame() {
     if(s) setSchedule(s);
   };
 
-  // --- REALTIME BLINDADO ---
   useEffect(() => {
-    fetchData(); // Carrega ao abrir
+    fetchData();
 
     const myPresenceId = 'user-' + Math.random().toString(36).substr(2, 9);
     
@@ -38,18 +37,39 @@ export function usePokerGame() {
     });
 
     channel
-      // A MÁGICA: Em qualquer mudança (INSERT, UPDATE, DELETE), recarrega tudo.
-      // Isso evita bugs visuais e garante que todos vejam a mesma coisa.
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'Player' }, () => {
-          console.log("Alteração em Player!");
-          fetchData();
-          notify("Mesa atualizada!", "info");
+      // --- ESCUTA MUDANÇAS E MOSTRA MENSAGEM CORRETA ---
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'Player' }, (payload) => {
+          fetchData(); // Atualiza a lista sempre
+
+          // Mensagens Personalizadas
+          if (payload.eventType === 'INSERT') {
+              const p = payload.new as Player;
+              notify(`${p.name} entrou no jogo!`, 'success');
+          }
+          if (payload.eventType === 'DELETE') {
+             notify('Um jogador saiu.', 'alert');
+          }
+          // Se for update de Rebuy
+          if (payload.eventType === 'UPDATE') {
+             const nova = payload.new as Player;
+             const velha = payload.old as Player; // O Supabase nem sempre manda o old, mas tentamos
+             if(nova.rebuy > 0 && (!velha || nova.rebuy > velha.rebuy)) {
+                 notify(`${nova.name} fez Rebuy/Add-on`, 'info');
+             } else {
+                 // Apenas atualiza sem notificar tudo
+             }
+          }
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ConfirmedPlayer' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ConfirmedPlayer' }, (payload) => {
           fetchData();
+          if (payload.eventType === 'INSERT') {
+             const p = payload.new as ConfirmedPlayer;
+             notify(`${p.name} sentou na cadeira ${p.seat}.`, 'info');
+          }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ScheduleItem' }, () => {
           fetchData();
+          notify("Novo agendamento!", 'info');
       })
       .on('presence', { event: 'sync' }, () => {
           const state = channel.presenceState();
@@ -71,11 +91,10 @@ export function usePokerGame() {
   const markAllRead = () => setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   const clearNotifications = () => setNotifications([]);
 
-  // --- AÇÕES (Envia para o banco e deixa o Realtime atualizar a tela) ---
+  // --- AÇÕES ---
   const addPlayer = async (name: string, buyIn: number, photo: string | null, isDealer: boolean) => {
     const uid = Date.now();
     if (isDealer) {
-      // Remove dealer anterior (SQL seria melhor, mas fazendo via JS por enquanto)
       const oldDealer = players.find(p => p.isDealer);
       if(oldDealer) await supabase.from('Player').update({ isDealer: false }).eq('id', oldDealer.id);
       const oldSeatDealer = confirmedPlayers.find(p => p.isDealer);
@@ -87,7 +106,7 @@ export function usePokerGame() {
     
     if(error) return notify('Erro ao salvar.', 'alert');
 
-    // Tenta sentar automaticamente
+    // Tenta sentar
     if (confirmedPlayers.length < 12) {
       let seat = 1;
       const taken = new Set(confirmedPlayers.map(p => p.seat));
