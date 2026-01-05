@@ -16,10 +16,13 @@ import { FaCalendarAlt, FaPlus, FaPowerOff, FaSignOutAlt, FaUserCheck } from 're
 
 export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [currentUser, setCurrentUser] = useState(""); // Guarda o nome do usuário logado
+  const [currentUser, setCurrentUser] = useState(""); 
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
   
+  // Controle do nome inicial no Modal (Vazio ou Nome do Usuário)
+  const [modalInitialName, setModalInitialName] = useState(""); 
+
   const { 
     players, confirmedPlayers, schedule, sessions, accessCount,
     notifications, toasts, soundEnabled,
@@ -31,7 +34,7 @@ export default function Home() {
   const [activeModal, setActiveModal] = useState<'add' | 'schedule' | 'sessions' | 'online' | null>(null);
   const [selectedSeatId, setSelectedSeatId] = useState<number | null>(null);
 
-  // --- PERSISTÊNCIA DE LOGIN ---
+  // --- LOGIN E PERSISTÊNCIA ---
   useEffect(() => {
       const sessionUser = sessionStorage.getItem('pokerUser');
       if(sessionUser) {
@@ -40,15 +43,13 @@ export default function Home() {
       }
   }, []);
 
-  // --- LOGIN ---
   const handleLogin = async (username: string, pass: string) => {
       setLoginLoading(true);
       setLoginError("");
       try {
           const { data, error } = await supabase.from('AppUser').select('*').eq('username', username).eq('password', pass).single();
-          if (error || !data) { 
-              setLoginError("Usuário ou senha incorretos."); 
-          } else { 
+          if (error || !data) { setLoginError("Usuário ou senha incorretos."); } 
+          else { 
               sessionStorage.setItem('pokerUser', username);
               setCurrentUser(username);
               setIsLoggedIn(true); 
@@ -56,21 +57,15 @@ export default function Home() {
       } catch (err) { setLoginError("Erro de conexão."); } finally { setLoginLoading(false); }
   };
 
-  // --- CADASTRO ---
   const handleRegister = async (username: string, pass: string) => {
       setLoginLoading(true);
       setLoginError("");
       try {
           const { data: existing } = await supabase.from('AppUser').select('*').eq('username', username).single();
-          if (existing) {
-              setLoginError("Este usuário já existe.");
-              setLoginLoading(false);
-              return;
-          }
+          if (existing) { setLoginError("Este usuário já existe."); setLoginLoading(false); return; }
           const { error } = await supabase.from('AppUser').insert({ username, password: pass });
-          if (error) {
-              setLoginError("Erro ao criar conta.");
-          } else {
+          if (error) { setLoginError("Erro ao criar conta."); } 
+          else { 
               sessionStorage.setItem('pokerUser', username);
               setCurrentUser(username);
               setIsLoggedIn(true);
@@ -84,31 +79,116 @@ export default function Home() {
       setIsLoggedIn(false); 
   };
 
-  // --- CÁLCULOS ---
+  // --- HELPER PARA ABRIR MODAL ---
+  const openAddModal = (nameToFill: string = "") => {
+      setModalInitialName(nameToFill);
+      setActiveModal('add');
+  };
+
+  // --- STATS ---
   const activeCount = players ? players.filter(p => p.status === 'playing').length : 0;
   const finishedCount = players ? players.filter(p => p.status === 'finished').length : 0;
   const totalInvested = players ? players.reduce((acc, p) => acc + p.buyIn + p.rebuy, 0) : 0;
   const totalCashOut = players ? players.reduce((acc, p) => acc + (p.cashOut || 0), 0) : 0;
   const moneyOnTable = totalInvested - totalCashOut;
-
-  // Verifica se o usuário atual JÁ ESTÁ jogando
   const isPlaying = players.some(p => p.name === currentUser && p.status === 'playing');
 
-  const handleSeatClick = (seatNum: number) => {
-    const occupant = confirmedPlayers.find(p => p.seat === seatNum);
-    if (selectedSeatId) {
-        if (occupant && occupant.id === selectedSeatId) { setSelectedSeatId(null); return; }
-        if (occupant) { swapSeats(selectedSeatId, occupant.id); setSelectedSeatId(null); return; }
-        updateSeatPosition(selectedSeatId, seatNum); setSelectedSeatId(null);
-    } else { if (occupant) setSelectedSeatId(occupant.id); }
+  // --- SEGURANÇA (PERMISSÕES) ---
+  const canEdit = (targetName: string) => {
+      if (currentUser === 'admin') return true; 
+      return targetName === currentUser;
   };
-  const handleRemoveSeat = (id: number) => { if(confirm("Remover da mesa visual?")) { if(selectedSeatId === id) setSelectedSeatId(null); removeVisualSeat(id); }};
-  const handleDeleteHistory = (id: number) => { if(confirm("Apagar registro?")) deleteHistoryItem(id); };
-  const handleClearHistory = () => { if(confirm("Limpar histórico?")) clearHistory(); };
 
-  if (!isLoggedIn) {
-      return <LoginScreen onLogin={handleLogin} onRegister={handleRegister} loading={loginLoading} error={loginError} />;
-  }
+  const safeRebuy = (id: number, amount: number) => {
+      const p = players.find(x => x.id === id);
+      if (p && !canEdit(p.name)) {
+          alert(`🚫 Bloqueado: Você só pode fazer Rebuy na sua conta.`);
+          return;
+      }
+      updateRebuy(id, amount);
+  };
+
+  const safeCheckout = (id: number, cashOut: number) => {
+      const p = players.find(x => x.id === id);
+      if (p && !canEdit(p.name)) {
+          alert(`🚫 Bloqueado: Você só pode encerrar a sua conta.`);
+          return;
+      }
+      checkoutPlayer(id, cashOut);
+  };
+
+  const safeDelete = (id: number) => {
+      const p = players.find(x => x.id === id);
+      if (p && !canEdit(p.name)) {
+          alert(`🚫 Bloqueado: Você não pode excluir outro jogador.`);
+          return;
+      }
+      if(confirm("Tem certeza que deseja apagar este registro?")) deleteHistoryItem(id);
+  };
+
+  // --- CORREÇÃO: Função handleClearHistory adicionada aqui ---
+  const handleClearHistory = () => {
+      if (currentUser !== 'admin') {
+          alert("🚫 Apenas o administrador pode limpar todo o histórico.");
+          return;
+      }
+      if(confirm("ATENÇÃO: Isso apagará todo o histórico de partidas encerradas.\nTem certeza?")) {
+          clearHistory();
+      }
+  };
+
+  const safeSeatAction = (seatNum: number) => {
+    const occupant = confirmedPlayers.find(p => p.seat === seatNum);
+    
+    if (selectedSeatId) {
+        // Verifica se quem está tentando mover é o dono da cadeira selecionada
+        const originalPlayer = confirmedPlayers.find(p => p.id === selectedSeatId);
+        if (originalPlayer && !canEdit(originalPlayer.name)) {
+             alert(`🚫 Você só pode mover a si mesmo!`);
+             setSelectedSeatId(null);
+             return;
+        }
+
+        if (occupant && occupant.id === selectedSeatId) { setSelectedSeatId(null); return; } 
+        if (occupant) { 
+            alert("Lugar ocupado.");
+            setSelectedSeatId(null); 
+            return; 
+        }
+        updateSeatPosition(selectedSeatId, seatNum); setSelectedSeatId(null);
+    } else { 
+        if (occupant) { 
+            if(!canEdit(occupant.name)) {
+                 // Bloqueia seleção silenciosa ou avisa
+                 // alert("Você não pode selecionar outro jogador.");
+            } else {
+                setSelectedSeatId(occupant.id); 
+            }
+        }
+    }
+  };
+
+  const safeRemoveSeat = (id: number) => {
+      const p = confirmedPlayers.find(x => x.id === id);
+      if (p && !canEdit(p.name)) {
+          alert(`🚫 Você não pode levantar outro jogador.`);
+          return;
+      }
+      if(confirm("Levantar da mesa?")) { 
+          if(selectedSeatId === id) setSelectedSeatId(null); 
+          removeVisualSeat(id); 
+      }
+  };
+
+  const safeFinishSession = () => {
+      if (currentUser !== 'admin') {
+          alert("🚫 Apenas o administrador pode encerrar a sessão.");
+          return;
+      }
+      finishSession();
+  };
+
+  if (!isLoggedIn) return <LoginScreen onLogin={handleLogin} onRegister={handleRegister} loading={loginLoading} error={loginError} />;
 
   return (
     <main className="min-h-screen bg-slate-900 text-slate-100 pb-24 font-sans overflow-x-hidden">
@@ -126,7 +206,6 @@ export default function Home() {
 
       <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-6 md:space-y-8">
         
-        {/* Banner Próximo Jogo */}
         {schedule && schedule.length > 0 && (
            <div className="bg-blue-900/30 border border-blue-800 rounded-xl p-4 flex flex-col md:flex-row gap-4 justify-between items-center shadow-lg animate-fade">
               <div className="flex items-center gap-3 w-full">
@@ -140,7 +219,6 @@ export default function Home() {
            </div>
         )}
 
-        {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
             <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
                 <p className="text-[10px] text-slate-500 uppercase font-bold">Jogando</p>
@@ -160,10 +238,10 @@ export default function Home() {
             </div>
         </div>
 
-        {/* --- NOVO: Botão de Ação Rápida para o Usuário Logado --- */}
+        {/* BOTÃO ESPECIAL: Entrar como EU */}
         {!isPlaying && (
             <button 
-                onClick={() => setActiveModal('add')} 
+                onClick={() => openAddModal(currentUser)} 
                 className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white py-4 rounded-2xl shadow-xl shadow-green-900/30 flex items-center justify-center gap-3 transform transition-all active:scale-95 animate-fade border border-green-500/30"
             >
                 <div className="bg-white/20 p-2 rounded-full"><FaUserCheck size={20} /></div>
@@ -180,10 +258,13 @@ export default function Home() {
              <button onClick={() => setActiveModal('schedule')} className="w-full md:flex-1 bg-slate-700 active:bg-slate-600 md:hover:bg-slate-600 text-slate-200 py-4 md:py-3 rounded-xl text-sm font-bold shadow-lg flex items-center justify-center gap-2 transition-colors">
                 <FaCalendarAlt size={16} /> Agendamento
              </button>
-             <button onClick={() => setActiveModal('add')} className="w-full md:flex-1 bg-blue-600 active:bg-blue-500 md:hover:bg-blue-500 text-white py-4 md:py-3 rounded-xl text-sm font-bold shadow-lg shadow-blue-900/50 flex items-center justify-center gap-2 transition-colors">
+             
+             {/* BOTÃO GENÉRICO: Abre vazio para adicionar amigos */}
+             <button onClick={() => openAddModal("")} className="w-full md:flex-1 bg-blue-600 active:bg-blue-500 md:hover:bg-blue-500 text-white py-4 md:py-3 rounded-xl text-sm font-bold shadow-lg shadow-blue-900/50 flex items-center justify-center gap-2 transition-colors">
                 <FaPlus size={16} /> Novo Jogador
              </button>
-             <button onClick={finishSession} className="w-full md:flex-1 bg-red-600 active:bg-red-500 md:hover:bg-red-500 text-white py-4 md:py-3 rounded-xl text-sm font-bold shadow-lg flex items-center justify-center gap-2 transition-colors">
+             
+             <button onClick={safeFinishSession} className="w-full md:flex-1 bg-red-600 active:bg-red-500 md:hover:bg-red-500 text-white py-4 md:py-3 rounded-xl text-sm font-bold shadow-lg flex items-center justify-center gap-2 transition-colors opacity-80 hover:opacity-100">
                 <FaPowerOff size={16} /> Encerrar Sessão
              </button>
              <button onClick={handleLogout} className="w-full md:flex-none md:w-32 bg-slate-800 active:bg-slate-700 md:hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 py-4 md:py-3 rounded-xl text-sm font-bold shadow-lg flex items-center justify-center gap-2 transition-colors">
@@ -192,20 +273,24 @@ export default function Home() {
           </div>
         </div>
 
-        <ActiveList players={players} onRebuy={updateRebuy} onCheckout={checkoutPlayer} onDelete={(id) => { if(confirm("Cancelar entrada?")) deleteHistoryItem(id); }} />
+        <ActiveList players={players} onRebuy={safeRebuy} onCheckout={safeCheckout} onDelete={safeDelete} />
+        
         <hr className="border-slate-800 my-8" />
-        <HistoryList players={players} onDelete={handleDeleteHistory} onClear={handleClearHistory} />
+        
+        <HistoryList players={players} onDelete={safeDelete} onClear={handleClearHistory} />
 
         <div className="bg-slate-800/50 rounded-2xl py-8 px-2 md:p-8 border border-slate-700 overflow-hidden relative mt-8 flex justify-center">
             <div className="w-full max-w-[800px]">
                 <h2 className="text-center text-lg font-bold text-blue-400 mb-2 uppercase tracking-wider">Lugares</h2>
-                <p className="text-center text-xs text-slate-500 mb-8">Toque para selecionar. Toque vazio para mover.</p>
-                <PokerTable seats={confirmedPlayers} selectedId={selectedSeatId} onRemove={handleRemoveSeat} onSeatClick={handleSeatClick} />
+                <p className="text-center text-xs text-slate-500 mb-8">Toque em você mesmo para mudar de lugar.</p>
+                {/* Mesa com FUNÇÕES SEGURAS */}
+                <PokerTable seats={confirmedPlayers} selectedId={selectedSeatId} onRemove={safeRemoveSeat} onSeatClick={safeSeatAction} />
             </div>
         </div>
       </div>
 
-      {activeModal === 'add' && <AddPlayerModal onClose={() => setActiveModal(null)} onConfirm={addPlayer} initialName={currentUser} />}
+      {/* MODAL AGORA USA modalInitialName CORRETAMENTE */}
+      {activeModal === 'add' && <AddPlayerModal onClose={() => setActiveModal(null)} onConfirm={addPlayer} initialName={modalInitialName} />}
       {activeModal === 'schedule' && <ScheduleModal schedule={schedule} onAdd={addSchedule} onDelete={deleteSchedule} onClose={() => setActiveModal(null)} />}
       {activeModal === 'sessions' && <SessionsModal sessions={sessions} onClear={clearSessions} onClose={() => setActiveModal(null)} />}
       {activeModal === 'online' && <OnlinePlayersModal players={players} onClose={() => setActiveModal(null)} />}
