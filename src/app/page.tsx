@@ -30,11 +30,11 @@ export default function Home() {
   const [activeModal, setActiveModal] = useState<'add' | 'schedule' | 'sessions' | 'online' | null>(null);
   const [selectedSeatId, setSelectedSeatId] = useState<number | null>(null);
 
-  // --- CORREÇÃO AQUI: Mantém o login ao atualizar a página ---
+  // --- PERSISTÊNCIA DE LOGIN ---
   useEffect(() => {
       const sessionUser = sessionStorage.getItem('pokerUser');
       if(sessionUser) {
-          setIsLoggedIn(true); // Se tiver salvo, entra direto
+          setIsLoggedIn(true);
       }
   }, []);
 
@@ -47,7 +47,7 @@ export default function Home() {
           if (error || !data) { 
               setLoginError("Usuário ou senha incorretos."); 
           } else { 
-              sessionStorage.setItem('pokerUser', username); // Salva na memória
+              sessionStorage.setItem('pokerUser', username);
               setIsLoggedIn(true); 
           }
       } catch (err) { setLoginError("Erro de conexão."); } finally { setLoginLoading(false); }
@@ -68,22 +68,29 @@ export default function Home() {
           if (error) {
               setLoginError("Erro ao criar conta.");
           } else {
-              sessionStorage.setItem('pokerUser', username); // Salva na memória
+              sessionStorage.setItem('pokerUser', username);
               setIsLoggedIn(true);
           }
       } catch (err) { setLoginError("Erro ao conectar."); } finally { setLoginLoading(false); }
   };
 
   const handleLogout = () => { 
-      sessionStorage.removeItem('pokerUser'); // Limpa a memória ao sair
+      sessionStorage.removeItem('pokerUser');
       setIsLoggedIn(false); 
   };
 
+  // --- CÁLCULOS FINANCEIROS CORRIGIDOS ---
   const activeCount = players ? players.filter(p => p.status === 'playing').length : 0;
   const finishedCount = players ? players.filter(p => p.status === 'finished').length : 0;
+  
+  // Total que entrou no jogo (Buy-ins + Rebuys)
   const totalInvested = players ? players.reduce((acc, p) => acc + p.buyIn + p.rebuy, 0) : 0;
+  
+  // Total que já saiu do jogo (CashOuts)
   const totalCashOut = players ? players.reduce((acc, p) => acc + (p.cashOut || 0), 0) : 0;
-  const balance = totalInvested - totalCashOut;
+  
+  // Dinheiro REAL na mesa (Entrou - Saiu)
+  const moneyOnTable = totalInvested - totalCashOut;
 
   const handleSeatClick = (seatNum: number) => {
     const occupant = confirmedPlayers.find(p => p.seat === seatNum);
@@ -130,11 +137,31 @@ export default function Home() {
            </div>
         )}
 
+        {/* STATS GRID CORRIGIDO */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-            <div className="bg-slate-800 p-4 rounded-xl border border-slate-700"><p className="text-[10px] text-slate-500 uppercase font-bold">Jogando</p><p className="text-2xl font-bold text-white">{activeCount}</p></div>
-            <div className="bg-slate-800 p-4 rounded-xl border border-slate-700"><p className="text-[10px] text-slate-500 uppercase font-bold">Na Mesa</p><p className="text-2xl font-bold text-green-400 truncate">R$ {totalInvested}</p></div>
-            <div className="bg-slate-800 p-4 rounded-xl border border-slate-700"><p className="text-[10px] text-slate-500 uppercase font-bold">Saíram</p><p className="text-2xl font-bold text-slate-300">{finishedCount}</p></div>
-            <div className="bg-slate-800 p-4 rounded-xl border border-slate-700"><p className="text-[10px] text-slate-500 uppercase font-bold">Balanço</p><p className="text-2xl font-bold truncate">{balance}</p></div>
+            {/* Jogadores Ativos */}
+            <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                <p className="text-[10px] text-slate-500 uppercase font-bold">Jogando</p>
+                <p className="text-2xl font-bold text-white">{activeCount}</p>
+            </div>
+            
+            {/* Dinheiro NA MESA (Agora desconta quem saiu) */}
+            <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                <p className="text-[10px] text-slate-500 uppercase font-bold">Na Mesa (Real)</p>
+                <p className="text-2xl font-bold text-green-400 truncate">R$ {moneyOnTable}</p>
+            </div>
+            
+            {/* Jogadores que Saíram */}
+            <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                <p className="text-[10px] text-slate-500 uppercase font-bold">Saíram</p>
+                <p className="text-2xl font-bold text-slate-300">{finishedCount}</p>
+            </div>
+            
+            {/* Total Arrecadado (Histórico Bruto) */}
+            <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                <p className="text-[10px] text-slate-500 uppercase font-bold">Total Arrecadado</p>
+                <p className="text-2xl font-bold text-blue-300 truncate">R$ {totalInvested}</p>
+            </div>
         </div>
         
         <div className="flex flex-col gap-4 pt-2">
