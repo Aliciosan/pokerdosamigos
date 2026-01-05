@@ -39,8 +39,6 @@ export interface NotificationItem {
   date: string;
 }
 
-// ... (outros tipos existentes)
-
 export interface Visitor {
   id: number;
   name: string;

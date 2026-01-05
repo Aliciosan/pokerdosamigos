@@ -4,14 +4,14 @@
 
 /* Configuração Base */
 body {
-  background-color: rgb(15, 23, 42); /* Slate 900 */
-  color: #f1f5f9; /* Slate 100 */
+  background-color: rgb(15, 23, 42); /* Slate 900 - Fundo Azul Escuro */
+  color: #f1f5f9; /* Slate 100 - Texto Claro */
   min-height: 100vh;
   font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
   overflow-x: hidden;
 }
 
-/* --- ANIMAÇÕES --- */
+/* Animações */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(5px); }
   to { opacity: 1; transform: translateY(0); }
@@ -23,14 +23,14 @@ body {
   animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-/* --- MESA VISUAL (DESKTOP - HORIZONTAL) --- */
+/* --- MESA DE POKER (Visual Clássico) --- */
 .poker-table-container {
   position: relative;
   width: 100%;
   max-width: 800px;
-  height: 380px; /* Altura fixa desktop */
+  height: 380px;
   margin: 0 auto 40px;
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease;
 }
 
 .poker-table-felt {
@@ -55,7 +55,7 @@ body {
   text-align: center;
 }
 
-/* Posições Desktop (Horizontal) */
+/* Posições das Cadeiras */
 .seat-pos-1 { top: -10px; left: 50%; transform: translateX(-50%); }
 .seat-pos-2 { top: 15px; right: 20%; }
 .seat-pos-3 { top: 80px; right: -5px; }
@@ -69,50 +69,28 @@ body {
 .seat-pos-11 { top: -10px; left: 35%; }
 .seat-pos-12 { top: -10px; right: 35%; }
 
-/* --- RESPONSIVIDADE MOBILE (MESA VERTICAL) --- */
+/* Mobile Responsive */
 @media (max-width: 640px) {
   .poker-table-container {
-    /* Muda para formato vertical alto */
-    max-width: 340px;
-    height: 600px; /* Muito mais alto que largo */
-    transform: none; /* Remove escala anterior */
-    margin-top: 20px;
+    transform: scale(0.60);
+    transform-origin: top center;
+    height: 250px;
+    margin-bottom: 10px;
+    margin-left: -10px;
+    margin-right: -10px;
   }
-  
   .poker-table-felt { 
-    inset: 10px 30px; /* Mais estreito nas laterais */
+    inset: 35px 5px; 
     border-width: 6px;
-    border-radius: 100px; /* Oval mais fechado */
   }
-
-  .poker-logo-center {
-      font-size: 1.2rem;
-      transform: rotate(90deg); /* Gira o logo */
-  }
-
-  /* Redefinição TOTAL das posições para vertical */
-  /* Topo */
-  .seat-pos-1 { top: -25px; left: 50%; transform: translateX(-50%); }
-  /* Lado Direito (descendo) */
-  .seat-pos-12 { top: 60px; right: -15px; left: auto; transform: none; }
-  .seat-pos-2 { top: 160px; right: -25px; }
-  .seat-pos-3 { top: 50%; right: -30px; transform: translateY(-50%); }
-  .seat-pos-4 { bottom: 160px; right: -25px; }
-  .seat-pos-5 { bottom: 60px; right: -15px; }
-  /* Fundo */
-  .seat-pos-6 { bottom: -25px; left: 50%; transform: translateX(-50%); }
-  /* Lado Esquerdo (subindo) */
-  .seat-pos-7 { bottom: 60px; left: -15px; }
-  .seat-pos-8 { bottom: 160px; left: -25px; }
-  .seat-pos-9 { top: 50%; left: -30px; transform: translateY(-50%); }
-  .seat-pos-10 { top: 160px; left: -25px; }
-  .seat-pos-11 { top: 60px; left: -15px; transform: none; }
+  /* Ajuste fino lateral */
+  .seat-pos-3, .seat-pos-4 { right: -15px; }
+  .seat-pos-8, .seat-pos-9 { left: -15px; }
 }
 
-/* Ajuste para telas muito estreitas */
 @media (max-width: 380px) {
   .poker-table-container {
-      transform: scale(0.9);
-      transform-origin: top center;
+    transform: scale(0.50);
+    height: 220px;
   }
 }
