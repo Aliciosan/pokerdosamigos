@@ -4,9 +4,11 @@ import { FaVolumeUp, FaVolumeMute, FaFolderOpen, FaRegBell, FaTrash, FaEye } fro
 import { GiPokerHand } from 'react-icons/gi';
 import { NotificationItem } from '@/types';
 
+// AQUI ESTAVA O ERRO: Adicionamos accessCount na interface
 interface Props {
   onlineCount: number;
-  visitorsCount: number;
+  accessCount: number;   // <--- Adicionado para corrigir o erro
+  visitorsCount: number; // Mantido para compatibilidade
   notifications: NotificationItem[];
   soundEnabled: boolean;
   setSoundEnabled: (val: boolean) => void;
@@ -15,17 +17,19 @@ interface Props {
   onOpenSchedule: () => void;
   onOpenSessions: () => void;
   onOpenOnline: () => void;
-  onOpenVisitors: () => void; // Restaurado
   onLogout: () => void;
 }
 
 export default function Header({ 
-    onlineCount, visitorsCount, notifications, soundEnabled, setSoundEnabled, 
-    onMarkRead, onClearNotifs, onOpenSchedule, onOpenSessions, onOpenOnline, onOpenVisitors 
+    onlineCount, accessCount, notifications, soundEnabled, setSoundEnabled, 
+    onMarkRead, onClearNotifs, onOpenSchedule, onOpenSessions, onOpenOnline, onLogout 
 }: Props) {
   const [time, setTime] = useState("00:00");
   const [showNotifMenu, setShowNotifMenu] = useState(false);
   const unreadCount = notifications.filter(n => !n.read).length;
+  
+  // Calcula visitantes reais baseado no contador automático
+  const realVisitors = Math.max(0, accessCount - onlineCount);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -38,6 +42,8 @@ export default function Header({
     <header className="bg-slate-800 border-b border-slate-700 sticky top-0 z-20 shadow-lg">
       <div className="max-w-7xl mx-auto px-4 py-3 md:py-4">
         <div className="flex justify-between items-center gap-2">
+          
+          {/* Logo */}
           <div className="flex items-center gap-2 md:gap-4 shrink-0">
             <div className="relative w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl md:rounded-2xl shadow-lg flex items-center justify-center border border-blue-400/20">
                <GiPokerHand className="text-white text-xl md:text-3xl" />
@@ -48,33 +54,40 @@ export default function Header({
             </div>
           </div>
 
+          {/* Ações */}
           <div className="flex items-center gap-1 md:gap-3 shrink-0">
+            
+            {/* Status Desktop */}
             <div className="hidden md:flex gap-2 mr-2">
                 <button onClick={onOpenOnline} className="flex items-center gap-2 bg-slate-700/50 hover:bg-slate-700 px-3 py-1.5 rounded-full border border-slate-600 transition-colors">
                     <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
                     <span className="text-xs font-bold text-slate-300"><span className="text-white">{onlineCount}</span> Jogando</span>
                 </button>
-                <button onClick={onOpenVisitors} className="flex items-center gap-2 bg-slate-700/50 hover:bg-slate-700 px-3 py-1.5 rounded-full border border-slate-600 transition-colors">
+                <div className="flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-full border border-slate-700 cursor-default">
                     <FaEye className="text-purple-400" size={12} />
-                    <span className="text-xs font-bold text-slate-300"><span className="text-white">{visitorsCount}</span> Visitantes</span>
-                </button>
+                    <span className="text-xs font-bold text-slate-400"><span className="text-white">{realVisitors}</span> Visitantes</span>
+                </div>
             </div>
 
-            <div className="flex md:hidden gap-1 mr-1">
+            {/* Status Mobile */}
+             <div className="flex md:hidden gap-1 mr-1">
                  <button onClick={onOpenOnline} className="flex items-center justify-center w-8 h-8 bg-slate-700/50 hover:bg-slate-700 rounded-full border border-slate-600 relative">
                      <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-green-500 animate-pulse border border-slate-800"></div>
                      <span className="text-xs font-bold text-white">{onlineCount}</span>
                  </button>
-                 <button onClick={onOpenVisitors} className="flex items-center justify-center w-8 h-8 bg-slate-700/50 hover:bg-slate-700 rounded-full border border-slate-600 relative">
+                 <div className="flex items-center justify-center w-8 h-8 bg-slate-800/50 rounded-full border border-slate-700 relative">
                      <FaEye className="text-purple-400" size={12} />
-                     <span className="absolute top-0 right-0 text-[8px] bg-slate-900 text-white px-1 rounded-full border border-slate-700 -mr-1 -mt-1 shadow-sm">{visitorsCount}</span>
-                 </button>
+                     <span className="absolute top-0 right-0 text-[8px] bg-slate-900 text-white px-1 rounded-full border border-slate-700 -mr-1 -mt-1 shadow-sm">{realVisitors}</span>
+                 </div>
              </div>
 
+            {/* Ícones */}
             <button onClick={onOpenSessions} className="text-slate-400 hover:text-white transition-colors p-2" title="Histórico"><FaFolderOpen className="text-lg md:text-xl" /></button>
             <button onClick={() => setSoundEnabled(!soundEnabled)} className="text-slate-400 hover:text-white transition-colors p-2">
               {soundEnabled ? <FaVolumeUp className="text-lg md:text-xl" /> : <FaVolumeMute className="text-lg md:text-xl text-red-500" />}
             </button>
+
+            {/* Notificações */}
             <div className="relative">
                 <button onClick={() => { setShowNotifMenu(!showNotifMenu); onMarkRead(); }} className="text-slate-400 hover:text-white transition-colors p-2 relative">
                     <FaRegBell className={`text-lg md:text-2xl ${unreadCount > 0 ? 'animate-bounce' : ''}`} />
