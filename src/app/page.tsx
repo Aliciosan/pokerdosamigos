@@ -35,18 +35,46 @@ export default function Home() {
       if(sessionUser) setIsLoggedIn(true);
   }, []);
 
+  // --- LOGIN ---
   const handleLogin = async (username: string, pass: string) => {
       setLoginLoading(true);
       setLoginError("");
       try {
           const { data, error } = await supabase.from('AppUser').select('*').eq('username', username).eq('password', pass).single();
-          if (error || !data) { setLoginError("Usuário ou senha incorretos."); } 
-          else { sessionStorage.setItem('pokerUser', username); setIsLoggedIn(true); }
+          if (error || !data) { 
+              setLoginError("Usuário ou senha incorretos."); 
+          } else { 
+              sessionStorage.setItem('pokerUser', username); 
+              setIsLoggedIn(true); 
+          }
       } catch (err) { setLoginError("Erro de conexão."); } finally { setLoginLoading(false); }
   };
+
+  // --- CADASTRO (NOVO) ---
+  const handleRegister = async (username: string, pass: string) => {
+      setLoginLoading(true);
+      setLoginError("");
+      try {
+          // Verifica se já existe
+          const { data: existing } = await supabase.from('AppUser').select('*').eq('username', username).single();
+          if (existing) {
+              setLoginError("Este usuário já existe.");
+              setLoginLoading(false);
+              return;
+          }
+          // Cria novo
+          const { error } = await supabase.from('AppUser').insert({ username, password: pass });
+          if (error) {
+              setLoginError("Erro ao criar conta.");
+          } else {
+              sessionStorage.setItem('pokerUser', username);
+              setIsLoggedIn(true);
+          }
+      } catch (err) { setLoginError("Erro ao conectar."); } finally { setLoginLoading(false); }
+  };
+
   const handleLogout = () => { sessionStorage.removeItem('pokerUser'); setIsLoggedIn(false); };
 
-  // Cálculos seguros (verificando se players existe)
   const activeCount = players ? players.filter(p => p.status === 'playing').length : 0;
   const finishedCount = players ? players.filter(p => p.status === 'finished').length : 0;
   const totalInvested = players ? players.reduce((acc, p) => acc + p.buyIn + p.rebuy, 0) : 0;
@@ -65,16 +93,17 @@ export default function Home() {
   const handleDeleteHistory = (id: number) => { if(confirm("Apagar registro?")) deleteHistoryItem(id); };
   const handleClearHistory = () => { if(confirm("Limpar histórico?")) clearHistory(); };
 
-  if (!isLoggedIn) return <LoginScreen onLogin={handleLogin} loading={loginLoading} error={loginError} />;
+  // Se não estiver logado, mostra a tela de Login/Cadastro
+  if (!isLoggedIn) {
+      return <LoginScreen onLogin={handleLogin} onRegister={handleRegister} loading={loginLoading} error={loginError} />;
+  }
 
   return (
     <main className="min-h-screen bg-slate-900 text-slate-100 pb-24 font-sans overflow-x-hidden">
       <ToastContainer toasts={toasts} removeToast={removeToast} />
 
       <Header 
-        onlineCount={activeCount} 
-        accessCount={accessCount || 0}
-        visitorsCount={0}
+        onlineCount={activeCount} accessCount={accessCount || 0} visitorsCount={0}
         notifications={notifications} soundEnabled={soundEnabled}
         setSoundEnabled={setSoundEnabled} onMarkRead={markAllRead} onClearNotifs={clearNotifications}
         onOpenSessions={() => setActiveModal('sessions')}

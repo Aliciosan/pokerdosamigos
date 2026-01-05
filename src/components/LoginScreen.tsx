@@ -1,21 +1,27 @@
 import { useState } from "react";
 import { GiPokerHand } from "react-icons/gi";
-import { FaUser, FaLock, FaSpinner } from "react-icons/fa";
+import { FaUser, FaLock, FaSpinner, FaUserPlus, FaSignInAlt } from "react-icons/fa";
 
 interface Props {
     onLogin: (user: string, pass: string) => void;
+    onRegister: (user: string, pass: string) => void;
     loading: boolean;
     error: string;
 }
 
-export default function LoginScreen({ onLogin, loading, error }: Props) {
+export default function LoginScreen({ onLogin, onRegister, loading, error }: Props) {
+  const [isRegistering, setIsRegistering] = useState(false); // Alternar telas
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if(username && password) {
-        onLogin(username, password);
+        if (isRegistering) {
+            onRegister(username, password);
+        } else {
+            onLogin(username, password);
+        }
     }
   };
 
@@ -32,12 +38,32 @@ export default function LoginScreen({ onLogin, loading, error }: Props) {
                 <GiPokerHand className="text-white text-6xl drop-shadow-lg" />
             </div>
             <h1 className="text-3xl font-black text-white tracking-tight">Poker dos Amigos</h1>
-            <p className="text-slate-400 text-sm">Faça login para acessar a mesa.</p>
+            <p className="text-slate-400 text-sm">
+                {isRegistering ? "Crie sua conta de administrador" : "Faça login para gerenciar a mesa"}
+            </p>
         </div>
 
         {/* Formulário */}
         <form onSubmit={handleSubmit} className="bg-slate-800/50 backdrop-blur-md border border-slate-700 p-8 rounded-2xl shadow-xl space-y-4">
             
+            {/* Abas de Navegação */}
+            <div className="flex bg-slate-900/50 p-1 rounded-xl mb-6">
+                <button 
+                    type="button"
+                    onClick={() => setIsRegistering(false)}
+                    className={`flex-1 py-2 text-xs font-bold uppercase rounded-lg transition-all ${!isRegistering ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                >
+                    Entrar
+                </button>
+                <button 
+                    type="button"
+                    onClick={() => setIsRegistering(true)}
+                    className={`flex-1 py-2 text-xs font-bold uppercase rounded-lg transition-all ${isRegistering ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                >
+                    Cadastrar
+                </button>
+            </div>
+
             <div>
                 <label className="block text-xs font-bold text-slate-400 uppercase mb-2 ml-1">Usuário</label>
                 <div className="relative">
@@ -47,7 +73,7 @@ export default function LoginScreen({ onLogin, loading, error }: Props) {
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
                         className="w-full bg-slate-900/80 border border-slate-600 rounded-xl py-3 pl-10 pr-4 text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-slate-600"
-                        placeholder="Seu usuário"
+                        placeholder="Nome de usuário"
                     />
                 </div>
             </div>
@@ -75,9 +101,14 @@ export default function LoginScreen({ onLogin, loading, error }: Props) {
             <button 
                 type="submit"
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-900/20 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed mt-2 flex justify-center items-center gap-2"
+                className={`w-full font-bold py-3.5 rounded-xl shadow-lg transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed mt-2 flex justify-center items-center gap-2 ${isRegistering ? 'bg-purple-600 hover:bg-purple-500 shadow-purple-900/20' : 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/20'} text-white`}
             >
-                {loading ? <FaSpinner className="animate-spin" /> : "ENTRAR"}
+                {loading ? <FaSpinner className="animate-spin" /> : (
+                    <>
+                        {isRegistering ? <FaUserPlus /> : <FaSignInAlt />}
+                        {isRegistering ? "CRIAR CONTA" : "ENTRAR"}
+                    </>
+                )}
             </button>
         </form>
         
