@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase'; // Importe o supabase
+import { supabase } from '@/lib/supabase';
 import { usePokerGame } from '@/hooks/usePokerGame';
 import Header from '@/components/Header';
 import PokerTable from '@/components/PokerTable';
@@ -12,7 +12,7 @@ import AddPlayerModal from '@/components/Modals/AddPlayerModal';
 import ScheduleModal from '@/components/Modals/ScheduleModal';
 import SessionsModal from '@/components/Modals/SessionsModal';
 import OnlinePlayersModal from '@/components/Modals/OnlinePlayersModal';
-import { FaCalendarAlt, FaPlus, FaPowerOff } from 'react-icons/fa';
+import { FaCalendarAlt, FaPlus, FaPowerOff, FaSignOutAlt } from 'react-icons/fa'; // Adicionado FaSignOutAlt
 
 export default function Home() {
   // Estados de Login
@@ -32,29 +32,26 @@ export default function Home() {
   const [selectedSeatId, setSelectedSeatId] = useState<number | null>(null);
 
   useEffect(() => {
-      // Verifica se já estava logado na sessão atual
       const sessionUser = sessionStorage.getItem('pokerUser');
       if(sessionUser) setIsLoggedIn(true);
   }, []);
 
-  // --- NOVA FUNÇÃO DE LOGIN ---
+  // --- LOGIN ---
   const handleLogin = async (username: string, pass: string) => {
       setLoginLoading(true);
       setLoginError("");
 
       try {
-          // Verifica na tabela AppUser se existe o par usuario/senha
           const { data, error } = await supabase
             .from('AppUser')
             .select('*')
             .eq('username', username)
-            .eq('password', pass) // Nota: Em produção real, senhas devem ser hash (bcrypt)
+            .eq('password', pass)
             .single();
 
           if (error || !data) {
               setLoginError("Usuário ou senha incorretos.");
           } else {
-              // Sucesso
               sessionStorage.setItem('pokerUser', username);
               setIsLoggedIn(true);
           }
@@ -70,7 +67,7 @@ export default function Home() {
       setIsLoggedIn(false);
   };
 
-  // --- CÁLCULOS E AÇÕES (Iguais) ---
+  // --- CÁLCULOS E AÇÕES ---
   const activeCount = players.filter(p => p.status === 'playing').length;
   const finishedCount = players.filter(p => p.status === 'finished').length;
   const totalInvested = players.reduce((acc, p) => acc + p.buyIn + p.rebuy, 0);
@@ -89,7 +86,6 @@ export default function Home() {
   const handleDeleteHistory = (id: number) => { if(confirm("Apagar registro?")) deleteHistoryItem(id); };
   const handleClearHistory = () => { if(confirm("Limpar histórico?")) clearHistory(); };
 
-  // Exibir Tela de Login se não estiver logado
   if (!isLoggedIn) {
       return <LoginScreen onLogin={handleLogin} loading={loginLoading} error={loginError} />;
   }
@@ -101,17 +97,18 @@ export default function Home() {
       <Header 
         onlineCount={activeCount} 
         accessCount={accessCount}
-        visitorsCount={0} // O Header calcula sozinho agora baseado no accessCount
+        visitorsCount={0}
         notifications={notifications} soundEnabled={soundEnabled}
         setSoundEnabled={setSoundEnabled} onMarkRead={markAllRead} onClearNotifs={clearNotifications}
         onOpenSchedule={() => setActiveModal('schedule')} 
         onOpenSessions={() => setActiveModal('sessions')}
         onOpenOnline={() => setActiveModal('online')}
-        onLogout={handleLogout} // Passa a função de sair
+        onLogout={handleLogout}
       />
 
       <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-8">
         
+        {/* Banner Próximo Jogo */}
         {schedule.length > 0 && (
            <div className="bg-blue-900/30 border border-blue-800 rounded-xl p-4 flex flex-col md:flex-row gap-4 justify-between items-center shadow-lg animate-fade">
               <div className="flex items-center gap-3 w-full">
@@ -125,6 +122,7 @@ export default function Home() {
            </div>
         )}
 
+        {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
             <div className="bg-slate-800 p-4 rounded-xl border border-slate-700"><p className="text-[10px] text-slate-500 uppercase font-bold">Jogando</p><p className="text-2xl font-bold text-white">{activeCount}</p></div>
             <div className="bg-slate-800 p-4 rounded-xl border border-slate-700"><p className="text-[10px] text-slate-500 uppercase font-bold">Na Mesa</p><p className="text-2xl font-bold text-green-400 truncate">R$ {totalInvested}</p></div>
@@ -132,12 +130,30 @@ export default function Home() {
             <div className="bg-slate-800 p-4 rounded-xl border border-slate-700"><p className="text-[10px] text-slate-500 uppercase font-bold">Balanço</p><p className="text-2xl font-bold truncate">{balance}</p></div>
         </div>
         
+        {/* Barra de Ações (Atualizada com botão Sair) */}
         <div className="flex flex-col gap-4 pt-2">
           <h2 className="text-lg font-bold text-green-400">Na Mesa (Ao Vivo)</h2>
+          
           <div className="flex flex-col md:flex-row gap-3 w-full">
-             <button onClick={() => setActiveModal('schedule')} className="w-full md:flex-1 bg-slate-700 active:bg-slate-600 md:hover:bg-slate-600 text-slate-200 py-4 md:py-3 rounded-xl text-sm font-bold shadow-lg flex items-center justify-center gap-2 transition-colors"><FaCalendarAlt size={16} /> Agendamento</button>
-             <button onClick={() => setActiveModal('add')} className="w-full md:flex-1 bg-blue-600 active:bg-blue-500 md:hover:bg-blue-500 text-white py-4 md:py-3 rounded-xl text-sm font-bold shadow-lg shadow-blue-900/50 flex items-center justify-center gap-2 transition-colors"><FaPlus size={16} /> Novo Jogador</button>
-             <button onClick={finishSession} className="w-full md:flex-1 bg-red-600 active:bg-red-500 md:hover:bg-red-500 text-white py-4 md:py-3 rounded-xl text-sm font-bold shadow-lg flex items-center justify-center gap-2 transition-colors"><FaPowerOff size={16} /> Encerrar Sessão</button>
+             {/* Agendamento */}
+             <button onClick={() => setActiveModal('schedule')} className="w-full md:flex-1 bg-slate-700 active:bg-slate-600 md:hover:bg-slate-600 text-slate-200 py-4 md:py-3 rounded-xl text-sm font-bold shadow-lg flex items-center justify-center gap-2 transition-colors">
+                <FaCalendarAlt size={16} /> Agendamento
+             </button>
+             
+             {/* Novo Jogador */}
+             <button onClick={() => setActiveModal('add')} className="w-full md:flex-1 bg-blue-600 active:bg-blue-500 md:hover:bg-blue-500 text-white py-4 md:py-3 rounded-xl text-sm font-bold shadow-lg shadow-blue-900/50 flex items-center justify-center gap-2 transition-colors">
+                <FaPlus size={16} /> Novo Jogador
+             </button>
+             
+             {/* Encerrar Sessão */}
+             <button onClick={finishSession} className="w-full md:flex-1 bg-red-600 active:bg-red-500 md:hover:bg-red-500 text-white py-4 md:py-3 rounded-xl text-sm font-bold shadow-lg flex items-center justify-center gap-2 transition-colors">
+                <FaPowerOff size={16} /> Encerrar Sessão
+             </button>
+
+             {/* NOVO BOTÃO SAIR */}
+             <button onClick={handleLogout} className="w-full md:flex-none md:w-32 bg-slate-800 active:bg-slate-700 md:hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 py-4 md:py-3 rounded-xl text-sm font-bold shadow-lg flex items-center justify-center gap-2 transition-colors">
+                <FaSignOutAlt size={16} /> Sair
+             </button>
           </div>
         </div>
 
@@ -145,6 +161,7 @@ export default function Home() {
         <hr className="border-slate-800 my-8" />
         <HistoryList players={players} onDelete={handleDeleteHistory} onClear={handleClearHistory} />
 
+        {/* Mesa Visual */}
         <div className="bg-slate-800/50 rounded-2xl py-8 px-2 md:p-8 border border-slate-700 overflow-hidden relative mt-8 flex justify-center">
             <div className="w-full">
                 <h2 className="text-center text-lg font-bold text-blue-400 mb-2 uppercase tracking-wider">Lugares</h2>
