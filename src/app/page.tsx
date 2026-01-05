@@ -30,13 +30,12 @@ export default function Home() {
   const [activeModal, setActiveModal] = useState<'add' | 'schedule' | 'sessions' | 'online' | null>(null);
   const [selectedSeatId, setSelectedSeatId] = useState<number | null>(null);
 
+  // --- CORREÇÃO AQUI: Mantém o login ao atualizar a página ---
   useEffect(() => {
-      // COMENTE OU REMOVA ESTAS LINHAS PARA O LOGIN AUTOMÁTICO VOLTAR
-      // const sessionUser = sessionStorage.getItem('pokerUser');
-      // if(sessionUser) setIsLoggedIn(true);
-      
-      // ADICIONE ESTA LINHA PARA FORÇAR O LOGIN A APARECER
-      setIsLoggedIn(false); 
+      const sessionUser = sessionStorage.getItem('pokerUser');
+      if(sessionUser) {
+          setIsLoggedIn(true); // Se tiver salvo, entra direto
+      }
   }, []);
 
   // --- LOGIN ---
@@ -48,36 +47,37 @@ export default function Home() {
           if (error || !data) { 
               setLoginError("Usuário ou senha incorretos."); 
           } else { 
-              sessionStorage.setItem('pokerUser', username); 
+              sessionStorage.setItem('pokerUser', username); // Salva na memória
               setIsLoggedIn(true); 
           }
       } catch (err) { setLoginError("Erro de conexão."); } finally { setLoginLoading(false); }
   };
 
-  // --- CADASTRO (NOVO) ---
+  // --- CADASTRO ---
   const handleRegister = async (username: string, pass: string) => {
       setLoginLoading(true);
       setLoginError("");
       try {
-          // Verifica se já existe
           const { data: existing } = await supabase.from('AppUser').select('*').eq('username', username).single();
           if (existing) {
               setLoginError("Este usuário já existe.");
               setLoginLoading(false);
               return;
           }
-          // Cria novo
           const { error } = await supabase.from('AppUser').insert({ username, password: pass });
           if (error) {
               setLoginError("Erro ao criar conta.");
           } else {
-              sessionStorage.setItem('pokerUser', username);
+              sessionStorage.setItem('pokerUser', username); // Salva na memória
               setIsLoggedIn(true);
           }
       } catch (err) { setLoginError("Erro ao conectar."); } finally { setLoginLoading(false); }
   };
 
-  const handleLogout = () => { sessionStorage.removeItem('pokerUser'); setIsLoggedIn(false); };
+  const handleLogout = () => { 
+      sessionStorage.removeItem('pokerUser'); // Limpa a memória ao sair
+      setIsLoggedIn(false); 
+  };
 
   const activeCount = players ? players.filter(p => p.status === 'playing').length : 0;
   const finishedCount = players ? players.filter(p => p.status === 'finished').length : 0;
@@ -97,7 +97,6 @@ export default function Home() {
   const handleDeleteHistory = (id: number) => { if(confirm("Apagar registro?")) deleteHistoryItem(id); };
   const handleClearHistory = () => { if(confirm("Limpar histórico?")) clearHistory(); };
 
-  // Se não estiver logado, mostra a tela de Login/Cadastro
   if (!isLoggedIn) {
       return <LoginScreen onLogin={handleLogin} onRegister={handleRegister} loading={loginLoading} error={loginError} />;
   }
